@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="ActivityMonitor.Agent/ActivityMonitor.Agent.csproj" />
+  <Project Path="ActivityMonitor.Core/ActivityMonitor.Core.csproj" />
+  <Project Path="ActivityMonitor.Infrastructure/ActivityMonitor.Infrastructure.csproj" />
+  <Project Path="ActivityMonitor.Reporting/ActivityMonitor.Reporting.csproj" />
+  <Project Path="ActivityMonitor.Service/ActivityMonitor.Service.csproj" />
+  <Project Path="ActivityMonitor.Tests/ActivityMonitor.Tests.csproj" />
+</Solution>
