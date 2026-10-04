@@ -22,6 +22,11 @@ dotnet publish "$WorkspaceRoot\ActivityMonitor.Agent\ActivityMonitor.Agent.cspro
     -c $Configuration `
     -o "$OutputDir\Agent"
 
+Write-Host "Publishing Viewer..." -ForegroundColor Yellow
+dotnet publish "$WorkspaceRoot\ActivityMonitor.Viewer\ActivityMonitor.Viewer.csproj" `
+    -c $Configuration `
+    -o "$OutputDir\Viewer"
+
 # Copy installer scripts to dist for easy distribution
 Copy-Item "$PSScriptRoot\Install.ps1" -Destination "$OutputDir\"
 Copy-Item "$PSScriptRoot\Uninstall.ps1" -Destination "$OutputDir\"

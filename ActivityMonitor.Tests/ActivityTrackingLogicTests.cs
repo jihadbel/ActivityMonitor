@@ -86,3 +86,5 @@ public class ActivityTrackingLogicTests
         Assert.Equal(300.0, idleEvent.DurationSeconds);
     }
 }
+
+

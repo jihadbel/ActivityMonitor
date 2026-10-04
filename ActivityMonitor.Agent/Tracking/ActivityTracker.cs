@@ -31,9 +31,6 @@ public class ActivityTracker : IActivityTracker, IDisposable
     private Thread? _monitorThread;
     private readonly AutoResetEvent _wakeUpEvent = new(false);
 
-    private IntPtr _hWinEventHook = IntPtr.Zero;
-    private NativeMethods.WinEventDelegate? _winEventDelegate;
-
     private ActivityEvent? _currentActivity;
     private ActivityEvent? _currentIdleActivity;
     private bool _isIdle;
@@ -67,29 +64,50 @@ public class ActivityTracker : IActivityTracker, IDisposable
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
         SystemEvents.SessionEnding += OnSessionEnding;
 
+        // Open interactive desktop on calling thread
+        IntPtr hDesk = NativeMethods.OpenDesktop("default", 0, false, NativeMethods.DESKTOP_ALL_ACCESS);
+        if (hDesk == IntPtr.Zero)
+        {
+            hDesk = NativeMethods.OpenInputDesktop(0, false, NativeMethods.DESKTOP_ALL_ACCESS);
+        }
+
         // Dedicated thread running on the interactive default desktop
-        _monitorThread = new Thread(RunMonitoringThread)
+        _monitorThread = new Thread(() => RunMonitoringThread(hDesk))
         {
             IsBackground = true,
             Name = "ActivityMonitorThread"
         };
-        _monitorThread.SetApartmentState(ApartmentState.STA);
         _monitorThread.Start();
 
         _logger.LogInformation("ActivityTracker started successfully.");
         return Task.CompletedTask;
     }
 
-    private void RunMonitoringThread()
+    private readonly struct WindowSnapshot
     {
-        // Attach thread to Windows default interactive desktop
+        public IntPtr HWnd { get; init; }
+        public int ProcessId { get; init; }
+        public string WindowTitle { get; init; }
+        public TimeSpan IdleTime { get; init; }
+
+        public WindowSnapshot(IntPtr hWnd, int processId, string windowTitle, TimeSpan idleTime)
+        {
+            HWnd = hWnd;
+            ProcessId = processId;
+            WindowTitle = windowTitle;
+            IdleTime = idleTime;
+        }
+    }
+
+    private void RunMonitoringThread(IntPtr hDesk)
+    {
         try
         {
-            var hDesk = NativeMethods.OpenDesktop("default", 0, false, NativeMethods.DESKTOP_ALL_ACCESS);
             if (hDesk != IntPtr.Zero)
             {
                 var bound = NativeMethods.SetThreadDesktop(hDesk);
-                _logger.LogInformation("Attached ActivityTracker thread to desktop 'default': {Bound}", bound);
+                int err = Marshal.GetLastWin32Error();
+                _logger.LogInformation("Attached ActivityTracker thread to desktop: {Bound} (LastError={Err}, TargetHandle={Handle})", bound, err, hDesk);
             }
         }
         catch (Exception ex)
@@ -97,45 +115,16 @@ public class ActivityTracker : IActivityTracker, IDisposable
             _logger.LogWarning(ex, "Could not attach thread to desktop 'default'");
         }
 
-        // Install WinEventHook on interactive desktop
-        try
-        {
-            _winEventDelegate = OnWinEventForeground;
-            _hWinEventHook = NativeMethods.SetWinEventHook(
-                NativeMethods.EVENT_SYSTEM_FOREGROUND,
-                NativeMethods.EVENT_SYSTEM_FOREGROUND,
-                IntPtr.Zero,
-                _winEventDelegate,
-                0,
-                0,
-                NativeMethods.WINEVENT_OUTOFCONTEXT | NativeMethods.WINEVENT_SKIPOWNPROCESS);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Failed to register WinEventHook. Relying on polling.");
-        }
-
         var interval = Math.Max(250, _options.PollingIntervalMs);
-
-        // Initial check immediately
-        try
-        {
-            CheckActivityAsync().GetAwaiter().GetResult();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during initial ActivityTracker check");
-        }
 
         while (_cts != null && !_cts.IsCancellationRequested)
         {
             try
             {
+                var snapshot = CaptureWindowSnapshotOnThread();
+                ProcessSnapshotAsync(snapshot).GetAwaiter().GetResult();
+
                 _wakeUpEvent.WaitOne(interval);
-
-                if (_cts.IsCancellationRequested) break;
-
-                CheckActivityAsync().GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -143,12 +132,29 @@ public class ActivityTracker : IActivityTracker, IDisposable
             }
         }
 
-        if (_hWinEventHook != IntPtr.Zero)
+        if (hDesk != IntPtr.Zero)
         {
-            NativeMethods.UnhookWinEvent(_hWinEventHook);
-            _hWinEventHook = IntPtr.Zero;
+            NativeMethods.CloseDesktop(hDesk);
         }
     }
+
+    private WindowSnapshot CaptureWindowSnapshotOnThread()
+    {
+        var idleTime = NativeMethods.GetIdleTime();
+        var hWnd = NativeMethods.GetForegroundWindow();
+        int processId = 0;
+        string windowTitle = string.Empty;
+
+        if (hWnd != IntPtr.Zero)
+        {
+            NativeMethods.GetWindowThreadProcessId(hWnd, out uint pid);
+            processId = (int)pid;
+            windowTitle = NativeMethods.GetWindowTitle(hWnd);
+        }
+
+        return new WindowSnapshot(hWnd, processId, windowTitle, idleTime);
+    }
+
 
     public async Task StopAsync(CancellationToken ct = default)
     {
@@ -190,31 +196,21 @@ public class ActivityTracker : IActivityTracker, IDisposable
         _logger.LogInformation("ActivityTracker stopped.");
     }
 
-    private void OnWinEventForeground(
-        IntPtr hWinEventHook,
-        uint eventType,
-        IntPtr hwnd,
-        int idObject,
-        int idChild,
-        uint dwEventThread,
-        uint dwmsEventTime)
-    {
-        _wakeUpEvent.Set();
-    }
-
-    private async Task CheckActivityAsync()
+    private async Task ProcessSnapshotAsync(WindowSnapshot snapshot)
     {
         if (_isLocked) return;
+
+        _logger.LogInformation("Sample: hWnd={HWnd}, PID={Pid}, Title='{Title}', Idle={Idle:mm\\:ss}",
+            snapshot.HWnd, snapshot.ProcessId, snapshot.WindowTitle, snapshot.IdleTime);
 
         await _syncLock.WaitAsync();
         try
         {
-            var idleTime = NativeMethods.GetIdleTime();
             var idleThreshold = TimeSpan.FromMinutes(_options.IdleThresholdMinutes);
 
-            if (idleTime >= idleThreshold)
+            if (snapshot.IdleTime >= idleThreshold)
             {
-                await HandleIdleStateAsync(idleTime);
+                await HandleIdleStateAsync(snapshot.IdleTime);
                 return;
             }
 
@@ -223,7 +219,7 @@ public class ActivityTracker : IActivityTracker, IDisposable
                 await HandleResumeFromIdleAsync();
             }
 
-            await HandleActiveWindowStateAsync();
+            await HandleActiveWindowStateAsync(snapshot);
         }
         finally
         {
@@ -287,37 +283,37 @@ public class ActivityTracker : IActivityTracker, IDisposable
         _isIdle = false;
     }
 
-    private async Task HandleActiveWindowStateAsync()
+    private async Task HandleActiveWindowStateAsync(WindowSnapshot snapshot)
     {
         string processName = "explorer";
-        int processId = 0;
-        string windowTitle = "Desktop";
+        int processId = snapshot.ProcessId;
+        string windowTitle = snapshot.WindowTitle;
         string? processPath = null;
-        string? contextPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        string? contextPath = null;
 
-        var hWnd = NativeMethods.GetForegroundWindow();
-        if (hWnd != IntPtr.Zero)
+        if (snapshot.HWnd != IntPtr.Zero && processId > 0)
         {
-            NativeMethods.GetWindowThreadProcessId(hWnd, out uint pid);
-            if (pid != 0)
+            try
             {
-                processId = (int)pid;
-                try
-                {
-                    using var proc = Process.GetProcessById(processId);
-                    processName = proc.ProcessName;
-                }
-                catch { }
-
-                windowTitle = NativeMethods.GetWindowTitle(hWnd);
-                if (string.IsNullOrWhiteSpace(windowTitle))
-                {
-                    windowTitle = processName;
-                }
-                processPath = NativeMethods.GetProcessExecutablePath(processId);
-                contextPath = _contextProvider.ResolveContext(processName, hWnd, windowTitle);
+                using var proc = Process.GetProcessById(processId);
+                processName = proc.ProcessName;
             }
+            catch { }
+
+            if (string.IsNullOrWhiteSpace(windowTitle))
+            {
+                windowTitle = processName;
+            }
+
+            processPath = NativeMethods.GetProcessExecutablePath(processId);
+            contextPath = _contextProvider.ResolveContext(processName, snapshot.HWnd, windowTitle);
         }
+        else
+        {
+            windowTitle = "Desktop";
+            contextPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        }
+
 
         var now = DateTime.UtcNow;
 

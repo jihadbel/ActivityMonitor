@@ -47,11 +47,11 @@ public class Worker : BackgroundService
                 _logger.LogInformation("Registered ActivityMonitor Agent in user startup.");
             }
 
-            // 3. Start Screen Recording
-            await _recordingService.StartRecordingSegmentAsync(cancellationToken);
-
-            // 4. Start Activity Tracking
+            // 3. Start Activity Tracking
             await _tracker.StartAsync(cancellationToken);
+
+            // 4. Start Screen Recording
+            await _recordingService.StartRecordingSegmentAsync(cancellationToken);
 
             _logger.LogInformation("ActivityMonitor Agent is now running silently.");
         }

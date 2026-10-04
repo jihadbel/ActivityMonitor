@@ -5,4 +5,5 @@
   <Project Path="ActivityMonitor.Reporting/ActivityMonitor.Reporting.csproj" />
   <Project Path="ActivityMonitor.Service/ActivityMonitor.Service.csproj" />
   <Project Path="ActivityMonitor.Tests/ActivityMonitor.Tests.csproj" />
+  <Project Path="ActivityMonitor.Viewer/ActivityMonitor.Viewer.csproj" />
 </Solution>

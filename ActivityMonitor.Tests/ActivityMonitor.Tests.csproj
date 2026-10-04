@@ -20,6 +20,7 @@
     <ProjectReference Include="..\ActivityMonitor.Core\ActivityMonitor.Core.csproj" />
     <ProjectReference Include="..\ActivityMonitor.Infrastructure\ActivityMonitor.Infrastructure.csproj" />
     <ProjectReference Include="..\ActivityMonitor.Reporting\ActivityMonitor.Reporting.csproj" />
+    <ProjectReference Include="..\ActivityMonitor.Viewer\ActivityMonitor.Viewer.csproj" />
   </ItemGroup>
 
 </Project>
