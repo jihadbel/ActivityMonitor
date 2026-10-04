@@ -29,17 +29,17 @@ public class MainViewModel : ViewModelBase
     private bool _isLoading;
 
     // Service & Agent status
-    private string _serviceStatusText = "Checking...";
+    private string _serviceStatusText = "جاري الفحص...";
     private bool _isServiceRunning;
-    private string _agentStatusText = "Checking...";
+    private string _agentStatusText = "جاري الفحص...";
     private bool _isAgentRunning;
     private string _statusMessage = string.Empty;
 
     // Summary KPIs
-    private string _totalActiveTimeDisplay = "00m 00s";
-    private string _totalIdleTimeDisplay = "00m 00s";
+    private string _totalActiveTimeDisplay = "00د 00ث";
+    private string _totalIdleTimeDisplay = "00د 00ث";
     private int _totalEventsCount;
-    private string _topAppName = "N/A";
+    private string _topAppName = "لا يوجد";
     private int _recordingsCount;
 
     // Video Player state
@@ -48,8 +48,8 @@ public class MainViewModel : ViewModelBase
     private TimeSpan _currentVideoPosition;
     private TimeSpan _videoDuration;
     private bool _isPlaying;
-    private string _nowPlayingTitle = "No video loaded";
-    private string _nowPlayingSub = "Select an activity with video to start playback";
+    private string _nowPlayingTitle = "لا يوجد فيديو قيد التشغيل";
+    private string _nowPlayingSub = "حدد نشاطاً من القائمة الجانبية لبدء المشاهدة";
     private double _volume = 0.8;
 
     public ObservableCollection<ActivityItemViewModel> Activities { get; } = new();
@@ -279,21 +279,21 @@ public class MainViewModel : ViewModelBase
         IsServiceRunning = sState == ServiceState.Running;
         ServiceStatusText = sState switch
         {
-            ServiceState.Running => "Service: Running",
-            ServiceState.Stopped => "Service: Stopped",
-            ServiceState.Transitioning => "Service: Changing...",
-            ServiceState.NotInstalled => "Service: Not Installed",
-            _ => "Service: Unknown"
+            ServiceState.Running => "الخدمة: قيد التشغيل",
+            ServiceState.Stopped => "الخدمة: متوقفة",
+            ServiceState.Transitioning => "الخدمة: جاري المعالجة...",
+            ServiceState.NotInstalled => "الخدمة: غير مثبتة",
+            _ => "الخدمة: غير معروفة"
         };
 
         var aRunning = _serviceManager.IsAgentRunning();
         IsAgentRunning = aRunning;
-        AgentStatusText = aRunning ? "Agent: Active" : "Agent: Inactive";
+        AgentStatusText = aRunning ? "العميل: نشط" : "العميل: متوقف";
     }
 
     private async Task ToggleServiceAsync()
     {
-        StatusMessage = "Processing service state change...";
+        StatusMessage = "جاري إرسال أمر تبديل حالة الخدمة...";
         var result = await _serviceManager.ToggleServiceAsync();
         StatusMessage = result;
         CheckStatuses();
@@ -301,7 +301,7 @@ public class MainViewModel : ViewModelBase
 
     private async Task ToggleAgentAsync()
     {
-        StatusMessage = "Processing agent state change...";
+        StatusMessage = "جاري إرسال أمر تبديل حالة العميل...";
         var result = await _serviceManager.ToggleAgentAsync();
         StatusMessage = result;
         CheckStatuses();
@@ -310,7 +310,7 @@ public class MainViewModel : ViewModelBase
     public async Task LoadDateDataAsync()
     {
         IsLoading = true;
-        StatusMessage = $"Loading data for {SelectedDate:yyyy-MM-dd}...";
+        StatusMessage = $"جاري تحميل بيانات {SelectedDate:yyyy-MM-dd}...";
 
         try
         {
@@ -421,22 +421,22 @@ public class MainViewModel : ViewModelBase
 
                     var activeTs = TimeSpan.FromSeconds(totalActiveSeconds);
                     TotalActiveTimeDisplay = activeTs.TotalHours >= 1
-                        ? $"{(int)activeTs.TotalHours}h {activeTs.Minutes}m"
-                        : $"{activeTs.Minutes}m {activeTs.Seconds}s";
+                        ? $"{(int)activeTs.TotalHours}س {activeTs.Minutes}د"
+                        : $"{activeTs.Minutes}د {activeTs.Seconds}ث";
 
                     var idleTs = TimeSpan.FromSeconds(totalIdleSeconds);
                     TotalIdleTimeDisplay = idleTs.TotalHours >= 1
-                        ? $"{(int)idleTs.TotalHours}h {idleTs.Minutes}m"
-                        : $"{idleTs.Minutes}m {idleTs.Seconds}s";
+                        ? $"{(int)idleTs.TotalHours}س {idleTs.Minutes}د"
+                        : $"{idleTs.Minutes}د {idleTs.Seconds}ث";
 
                     ApplyFilter();
-                    StatusMessage = $"Loaded {items.Count} activities and {segViewModels.Count} video segments.";
+                    StatusMessage = $"تم تحميل {items.Count} نشاطاً و {segViewModels.Count} مقطع فيديو.";
                 });
             });
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Error loading data: {ex.Message}";
+            StatusMessage = $"خطأ أثناء تحميل البيانات: {ex.Message}";
         }
         finally
         {
@@ -468,16 +468,16 @@ public class MainViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(activity.RecordingFilePath) || !File.Exists(activity.RecordingFilePath))
         {
-            StatusMessage = $"Video file for '{activity.ProcessName}' not found on disk.";
+            StatusMessage = $"ملف الفيديو الخاص بـ '{activity.ProcessName}' غير موجود على القرص.";
             return;
         }
 
         CurrentVideoPath = activity.RecordingFilePath;
         RequestedSeekPosition = activity.VideoOffset;
         NowPlayingTitle = $"{activity.ProcessName} - {activity.WindowTitle}";
-        NowPlayingSub = $"{activity.TimeRangeDisplay} | Offset: {activity.OffsetDisplay} | File: {activity.RecordingFileName}";
+        NowPlayingSub = $"{activity.TimeRangeDisplay} | الإزاحة: {activity.OffsetDisplay} | الملف: {activity.RecordingFileName}";
 
-        StatusMessage = $"Jumping to {activity.OffsetDisplay} in {activity.RecordingFileName}...";
+        StatusMessage = $"جاري القفز إلى {activity.OffsetDisplay} في مقطع {activity.RecordingFileName}...";
         RequestMediaPlay?.Invoke(activity.RecordingFilePath, activity.VideoOffset);
         IsPlaying = true;
     }

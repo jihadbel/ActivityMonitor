@@ -5,11 +5,12 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:viewmodels="clr-namespace:ActivityMonitor.Viewer.ViewModels"
         mc:Ignorable="d"
-        Title="ActivityMonitor - Local Viewer &amp; Video Player"
-        Height="850" Width="1400"
+        Title="مراقب الأنشطة - مستعرض التقارير ومشغل الفيديو المتزامن"
+        Height="860" Width="1420"
         MinHeight="700" MinWidth="1100"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource BgDarkBrush}"
+        FlowDirection="RightToLeft"
+        Background="{StaticResource BgLightBrush}"
         Foreground="{StaticResource TextPrimaryBrush}">
 
     <Window.DataContext>
@@ -17,15 +18,16 @@
     </Window.DataContext>
 
     <Window.Resources>
-        <!-- Custom button style -->
+        <!-- Light Action Button Style -->
         <Style x:Key="ActionButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="{StaticResource CardDarkBrush}" />
+            <Setter Property="Background" Value="{StaticResource SurfaceLightBrush}" />
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderDarkBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="Padding" Value="12,6" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="12" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
@@ -39,11 +41,11 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource BorderDarkBrush}" />
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource CardLightBrush}" />
                                 <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentHoverBrush}" />
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource BorderLightBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -51,20 +53,44 @@
             </Setter>
         </Style>
 
+        <!-- Accent Primary Button Style -->
         <Style x:Key="AccentButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
             <Setter Property="Background" Value="{StaticResource AccentBrush}" />
             <Setter Property="BorderBrush" Value="{StaticResource AccentHoverBrush}" />
             <Setter Property="Foreground" Value="White" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="{StaticResource AccentHoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#3730A3" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
+        <!-- 1-Click Row Play Button Style -->
         <Style x:Key="PlayRowButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#312E81" />
-            <Setter Property="Foreground" Value="#A5B4FC" />
-            <Setter Property="BorderBrush" Value="#4338CA" />
+            <Setter Property="Background" Value="#EEF2FF" />
+            <Setter Property="Foreground" Value="#4338CA" />
+            <Setter Property="BorderBrush" Value="#C7D2FE" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Padding" Value="8,3" />
+            <Setter Property="Padding" Value="10,4" />
             <Setter Property="FontSize" Value="11" />
-            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -73,7 +99,7 @@
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="4"
+                                CornerRadius="5"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                         </Border>
@@ -82,6 +108,9 @@
                                 <Setter TargetName="border" Property="Background" Value="{StaticResource AccentBrush}" />
                                 <Setter TargetName="border" Property="TextElement.Foreground" Value="White" />
                             </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="border" Property="Opacity" Value="0.4" />
+                            </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
@@ -89,22 +118,22 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="16">
+    <Grid Margin="18">
         <Grid.RowDefinitions>
-            <!-- Header Bar -->
+            <!-- 0. Header Bar -->
             <RowDefinition Height="Auto" />
-            <!-- KPI Cards -->
+            <!-- 1. KPI Metric Cards -->
             <RowDefinition Height="Auto" />
-            <!-- Main Content (Timeline + Video Player) -->
+            <!-- 2. Main Content Split View -->
             <RowDefinition Height="*" />
-            <!-- Status Bar -->
+            <!-- 3. Bottom Status Bar -->
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- 1. TOP HEADER BAR -->
+        <!-- 0. TOP HEADER BAR -->
         <Border Grid.Row="0"
-                Background="{StaticResource SurfaceDarkBrush}"
-                BorderBrush="{StaticResource BorderDarkBrush}"
+                Background="{StaticResource SurfaceLightBrush}"
+                BorderBrush="{StaticResource BorderSubtleBrush}"
                 BorderThickness="1"
                 CornerRadius="10"
                 Padding="16,12"
@@ -116,34 +145,33 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Logo & Title -->
+                <!-- Logo & Arabic App Title -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="36" Height="36" CornerRadius="8" Background="{StaticResource AccentBrush}" Margin="0,0,12,0">
-                        <TextBlock Text="▶" Foreground="White" FontSize="16" FontWeight="Bold"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="2,0,0,0" />
+                    <Border Width="40" Height="40" CornerRadius="10" Background="{StaticResource AccentBrush}" Margin="0,0,12,0">
+                        <TextBlock Text="▶" Foreground="White" FontSize="18" FontWeight="Bold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,2,0" />
                     </Border>
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="ActivityMonitor" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
-                        <TextBlock Text="Local Activity Viewer &amp; Synchronized Player" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" />
+                        <TextBlock Text="مراقب الأنشطة" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+                        <TextBlock Text="مستعرض الأنشطة والمشغل المحلي المتزامن" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
                     </StackPanel>
                 </StackPanel>
 
                 <!-- Date Controls -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Button Content="◀" Style="{StaticResource ActionButtonStyle}" Command="{Binding PreviousDayCommand}" Width="36" Margin="0,0,6,0" ToolTip="Previous Day" />
-                    <DatePicker SelectedDate="{Binding SelectedDate, Mode=TwoWay}" Width="140" Height="32" VerticalContentAlignment="Center" Background="{StaticResource CardDarkBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderDarkBrush}" />
-                    <Button Content="▶" Style="{StaticResource ActionButtonStyle}" Command="{Binding NextDayCommand}" Width="36" Margin="6,0,8,0" ToolTip="Next Day" />
-                    <Button Content="Today" Style="{StaticResource ActionButtonStyle}" Command="{Binding TodayCommand}" Margin="0,0,8,0" />
-                    <Button Content="🔄 Refresh" Style="{StaticResource ActionButtonStyle}" Command="{Binding RefreshCommand}" />
+                    <Button Content="▶" Style="{StaticResource ActionButtonStyle}" Command="{Binding NextDayCommand}" Width="36" Margin="0,0,6,0" ToolTip="اليوم التالي" />
+                    <DatePicker SelectedDate="{Binding SelectedDate, Mode=TwoWay}" Width="145" Height="32" VerticalContentAlignment="Center" Background="{StaticResource SurfaceLightBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderLightBrush}" />
+                    <Button Content="◀" Style="{StaticResource ActionButtonStyle}" Command="{Binding PreviousDayCommand}" Width="36" Margin="6,0,8,0" ToolTip="اليوم السابق" />
+                    <Button Content="اليوم" Style="{StaticResource ActionButtonStyle}" Command="{Binding TodayCommand}" Margin="0,0,8,0" />
+                    <Button Content="🔄 تحديث" Style="{StaticResource ActionButtonStyle}" Command="{Binding RefreshCommand}" />
                 </StackPanel>
 
-                <!-- Service & Agent Status Badges & Controls -->
+                <!-- Service & Agent Controls -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                    <!-- Service Control Group -->
-                    <Border Background="{StaticResource CardDarkBrush}" BorderBrush="{StaticResource BorderDarkBrush}" BorderThickness="1" CornerRadius="8" Padding="10,4" Margin="0,0,10,0">
+                    <!-- Service Control Badge -->
+                    <Border Background="{StaticResource CardLightBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="10,4" Margin="0,0,10,0">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <!-- Service Status Indicator Dot -->
-                            <Ellipse Width="10" Height="10" Margin="0,0,6,0">
+                            <Ellipse Width="10" Height="10" Margin="0,0,8,0">
                                 <Ellipse.Style>
                                     <Style TargetType="Ellipse">
                                         <Setter Property="Fill" Value="{StaticResource DangerBrush}" />
@@ -156,13 +184,13 @@
                                 </Ellipse.Style>
                             </Ellipse>
                             <TextBlock Text="{Binding ServiceStatusText}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0" />
-                            <Button Command="{Binding ToggleServiceCommand}" Padding="8,4" FontSize="11">
+                            <Button Command="{Binding ToggleServiceCommand}" Padding="10,4" FontSize="11">
                                 <Button.Style>
                                     <Style TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
-                                        <Setter Property="Content" Value="Start Service" />
+                                        <Setter Property="Content" Value="تشغيل الخدمة" />
                                         <Style.Triggers>
                                             <DataTrigger Binding="{Binding IsServiceRunning}" Value="True">
-                                                <Setter Property="Content" Value="Stop Service" />
+                                                <Setter Property="Content" Value="إيقاف الخدمة" />
                                             </DataTrigger>
                                         </Style.Triggers>
                                     </Style>
@@ -171,10 +199,10 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Agent Control Group -->
-                    <Border Background="{StaticResource CardDarkBrush}" BorderBrush="{StaticResource BorderDarkBrush}" BorderThickness="1" CornerRadius="8" Padding="10,4" Margin="0,0,10,0">
+                    <!-- Agent Control Badge -->
+                    <Border Background="{StaticResource CardLightBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="10,4" Margin="0,0,10,0">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Ellipse Width="10" Height="10" Margin="0,0,6,0">
+                            <Ellipse Width="10" Height="10" Margin="0,0,8,0">
                                 <Ellipse.Style>
                                     <Style TargetType="Ellipse">
                                         <Setter Property="Fill" Value="{StaticResource WarningBrush}" />
@@ -187,18 +215,18 @@
                                 </Ellipse.Style>
                             </Ellipse>
                             <TextBlock Text="{Binding AgentStatusText}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0" />
-                            <Button Content="Toggle Agent" Style="{StaticResource ActionButtonStyle}" Command="{Binding ToggleAgentCommand}" Padding="8,4" FontSize="11" />
+                            <Button Content="تبديل العميل" Style="{StaticResource ActionButtonStyle}" Command="{Binding ToggleAgentCommand}" Padding="10,4" FontSize="11" />
                         </StackPanel>
                     </Border>
 
                     <!-- Folders -->
-                    <Button Content="📁 Reports" Style="{StaticResource ActionButtonStyle}" Command="{Binding OpenReportsFolderCommand}" Margin="0,0,6,0" ToolTip="Open Daily Reports Directory" />
-                    <Button Content="🎥 Videos" Style="{StaticResource ActionButtonStyle}" Command="{Binding OpenRecordingsFolderCommand}" ToolTip="Open Recordings Directory" />
+                    <Button Content="📁 التقارير" Style="{StaticResource ActionButtonStyle}" Command="{Binding OpenReportsFolderCommand}" Margin="0,0,6,0" ToolTip="فتح مجلد التقارير اليومية" />
+                    <Button Content="🎥 التسجيلات" Style="{StaticResource ActionButtonStyle}" Command="{Binding OpenRecordingsFolderCommand}" ToolTip="فتح مجلد مقاطع الفيديو المسجلة" />
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- 2. KPI SUMMARY METRIC CARDS -->
+        <!-- 1. KPI SUMMARY METRIC CARDS -->
         <Grid Grid.Row="1" Margin="0,0,0,14">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -208,62 +236,62 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <!-- Card 1: Active Time -->
-            <Border Grid.Column="0" Background="{StaticResource SurfaceDarkBrush}" BorderBrush="{StaticResource BorderDarkBrush}" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,8,0">
+            <!-- Card 1: Active Work Time -->
+            <Border Grid.Column="0" Background="{StaticResource SurfaceLightBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,8,0">
                 <StackPanel>
-                    <TextBlock Text="ACTIVE WORK TIME" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" />
+                    <TextBlock Text="وقت العمل الفعلي" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" />
                     <TextBlock Text="{Binding TotalActiveTimeDisplay}" FontSize="20" FontWeight="Bold" Margin="0,4,0,0" Foreground="{StaticResource TextPrimaryBrush}" />
                 </StackPanel>
             </Border>
 
             <!-- Card 2: Idle Time -->
-            <Border Grid.Column="1" Background="{StaticResource SurfaceDarkBrush}" BorderBrush="{StaticResource BorderDarkBrush}" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="4,0,8,0">
+            <Border Grid.Column="1" Background="{StaticResource SurfaceLightBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="4,0,8,0">
                 <StackPanel>
-                    <TextBlock Text="USER IDLE TIME" FontSize="11" FontWeight="Bold" Foreground="{StaticResource WarningBrush}" />
+                    <TextBlock Text="وقت خمول المستخدم" FontSize="11" FontWeight="Bold" Foreground="{StaticResource WarningBrush}" />
                     <TextBlock Text="{Binding TotalIdleTimeDisplay}" FontSize="20" FontWeight="Bold" Margin="0,4,0,0" Foreground="{StaticResource TextPrimaryBrush}" />
                 </StackPanel>
             </Border>
 
             <!-- Card 3: Top Application -->
-            <Border Grid.Column="2" Background="{StaticResource SurfaceDarkBrush}" BorderBrush="{StaticResource BorderDarkBrush}" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="4,0,8,0">
+            <Border Grid.Column="2" Background="{StaticResource SurfaceLightBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="4,0,8,0">
                 <StackPanel>
-                    <TextBlock Text="TOP APPLICATION" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
+                    <TextBlock Text="التطبيق الأكثر استخداماً" FontSize="11" FontWeight="Bold" Foreground="#0284C7" />
                     <TextBlock Text="{Binding TopAppName}" FontSize="18" FontWeight="Bold" Margin="0,4,0,0" TextTrimming="CharacterEllipsis" Foreground="{StaticResource TextPrimaryBrush}" />
                 </StackPanel>
             </Border>
 
             <!-- Card 4: Total Events -->
-            <Border Grid.Column="3" Background="{StaticResource SurfaceDarkBrush}" BorderBrush="{StaticResource BorderDarkBrush}" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="4,0,8,0">
+            <Border Grid.Column="3" Background="{StaticResource SurfaceLightBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="4,0,8,0">
                 <StackPanel>
-                    <TextBlock Text="TOTAL EVENTS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
+                    <TextBlock Text="إجمالي الأحداث المسجلة" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
                     <TextBlock Text="{Binding TotalEventsCount}" FontSize="20" FontWeight="Bold" Margin="0,4,0,0" Foreground="{StaticResource TextPrimaryBrush}" />
                 </StackPanel>
             </Border>
 
             <!-- Card 5: Recordings Count -->
-            <Border Grid.Column="4" Background="{StaticResource SurfaceDarkBrush}" BorderBrush="{StaticResource BorderDarkBrush}" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="4,0,0,0">
+            <Border Grid.Column="4" Background="{StaticResource SurfaceLightBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="4,0,0,0">
                 <StackPanel>
-                    <TextBlock Text="RECORDED SEGMENTS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}" />
+                    <TextBlock Text="مقاطع الفيديو المسجلة" FontSize="11" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}" />
                     <TextBlock Text="{Binding RecordingsCount}" FontSize="20" FontWeight="Bold" Margin="0,4,0,0" Foreground="{StaticResource TextPrimaryBrush}" />
                 </StackPanel>
             </Border>
         </Grid>
 
-        <!-- 3. MAIN CONTENT: SPLIT VIEW (TIMELINE & EMBEDDED VIDEO PLAYER) -->
+        <!-- 2. MAIN CONTENT: SPLIT VIEW (TIMELINE & VIDEO PLAYER) -->
         <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <!-- Left: Activities Timeline -->
-                <ColumnDefinition Width="1.2*" MinWidth="450" />
+                <ColumnDefinition Width="1.2*" MinWidth="480" />
                 <!-- Splitter -->
-                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="10" />
                 <!-- Right: Embedded Video Player -->
-                <ColumnDefinition Width="1*" MinWidth="400" />
+                <ColumnDefinition Width="1*" MinWidth="420" />
             </Grid.ColumnDefinitions>
 
-            <!-- LEFT PANE: ACTIVITIES TIMELINE -->
+            <!-- ACTIVITIES TIMELINE PANE -->
             <Border Grid.Column="0"
-                    Background="{StaticResource SurfaceDarkBrush}"
-                    BorderBrush="{StaticResource BorderDarkBrush}"
+                    Background="{StaticResource SurfaceLightBrush}"
+                    BorderBrush="{StaticResource BorderSubtleBrush}"
                     BorderThickness="1"
                     CornerRadius="10"
                     Padding="14">
@@ -277,22 +305,19 @@
 
                     <!-- Filter input -->
                     <Grid Grid.Row="0" Margin="0,0,0,12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
                         <TextBox Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 Background="{StaticResource CardDarkBrush}"
+                                 Background="#F8FAFC"
                                  Foreground="{StaticResource TextPrimaryBrush}"
-                                 BorderBrush="{StaticResource BorderDarkBrush}"
+                                 BorderBrush="{StaticResource BorderLightBrush}"
                                  BorderThickness="1"
-                                 Padding="10,8"
+                                 Padding="12,8"
                                  FontSize="13">
                             <TextBox.Style>
                                 <Style TargetType="TextBox">
                                     <Style.Resources>
-                                        <VisualBrush x:Key="CueBannerBrush" AlignmentX="Left" AlignmentY="Center" Stretch="None">
+                                        <VisualBrush x:Key="CueBannerBrush" AlignmentX="Right" AlignmentY="Center" Stretch="None">
                                             <VisualBrush.Visual>
-                                                <Label Content="🔍 Search activities by application name, title, or context path..." Foreground="#94A3B8" Padding="4,0" />
+                                                <Label Content="🔍 ابحث في الأنشطة حسب اسم البرنامج، عنوان النافذة، أو مسار المجلد..." Foreground="#94A3B8" Padding="6,0" />
                                             </VisualBrush.Visual>
                                         </VisualBrush>
                                     </Style.Resources>
@@ -304,7 +329,8 @@
                                             <Setter Property="Background" Value="{StaticResource CueBannerBrush}" />
                                         </Trigger>
                                         <Trigger Property="IsKeyboardFocused" Value="True">
-                                            <Setter Property="Background" Value="{StaticResource CardDarkBrush}" />
+                                            <Setter Property="Background" Value="#FFFFFF" />
+                                            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
@@ -322,21 +348,22 @@
                               CanUserDeleteRows="False"
                               SelectionMode="Single"
                               GridLinesVisibility="Horizontal"
-                              HorizontalGridLinesBrush="#334155"
+                              HorizontalGridLinesBrush="#E2E8F0"
                               Background="Transparent"
-                              RowBackground="#1E293B"
-                              AlternatingRowBackground="#243248"
-                              BorderThickness="0"
+                              RowBackground="#FFFFFF"
+                              AlternatingRowBackground="#F8FAFC"
+                              BorderThickness="1"
+                              BorderBrush="#E2E8F0"
                               HeadersVisibility="Column"
                               RowHeaderWidth="0">
 
                         <DataGrid.ColumnHeaderStyle>
                             <Style TargetType="DataGridColumnHeader">
-                                <Setter Property="Background" Value="{StaticResource CardDarkBrush}" />
+                                <Setter Property="Background" Value="#F1F5F9" />
                                 <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
-                                <Setter Property="FontWeight" Value="SemiBold" />
-                                <Setter Property="Padding" Value="10,8" />
-                                <Setter Property="BorderBrush" Value="{StaticResource BorderDarkBrush}" />
+                                <Setter Property="FontWeight" Value="Bold" />
+                                <Setter Property="Padding" Value="10,9" />
+                                <Setter Property="BorderBrush" Value="#E2E8F0" />
                                 <Setter Property="BorderThickness" Value="0,0,1,1" />
                             </Style>
                         </DataGrid.ColumnHeaderStyle>
@@ -345,14 +372,14 @@
                             <Style TargetType="DataGridRow">
                                 <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
                                 <Setter Property="FontSize" Value="12" />
-                                <Setter Property="MinHeight" Value="32" />
+                                <Setter Property="MinHeight" Value="34" />
                                 <Style.Triggers>
                                     <Trigger Property="IsSelected" Value="True">
-                                        <Setter Property="Background" Value="#3730A3" />
-                                        <Setter Property="Foreground" Value="White" />
+                                        <Setter Property="Background" Value="#EEF2FF" />
+                                        <Setter Property="Foreground" Value="#1E1B4B" />
                                     </Trigger>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="#2D3748" />
+                                        <Setter Property="Background" Value="#F1F5F9" />
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
@@ -360,38 +387,38 @@
 
                         <DataGrid.Columns>
                             <!-- Time Range -->
-                            <DataGridTextColumn Header="Time" Binding="{Binding TimeRangeDisplay}" Width="135" />
+                            <DataGridTextColumn Header="الوقت" Binding="{Binding TimeRangeDisplay}" Width="145" />
 
                             <!-- Application Name (Badge) -->
-                            <DataGridTemplateColumn Header="Application" Width="120">
+                            <DataGridTemplateColumn Header="التطبيق" Width="120">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Border Background="{Binding AppBadgeColor}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
-                                            <TextBlock Text="{Binding ProcessName}" Foreground="White" FontWeight="SemiBold" FontSize="11" />
+                                        <Border Background="{Binding AppBadgeColor}" CornerRadius="5" Padding="8,2" HorizontalAlignment="Right">
+                                            <TextBlock Text="{Binding ProcessName}" Foreground="White" FontWeight="Bold" FontSize="11" />
                                         </Border>
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
 
                             <!-- Window Title -->
-                            <DataGridTextColumn Header="Window Title" Binding="{Binding WindowTitle}" Width="1.5*" />
+                            <DataGridTextColumn Header="عنوان النافذة" Binding="{Binding WindowTitle}" Width="1.5*" />
 
                             <!-- Duration -->
-                            <DataGridTextColumn Header="Duration" Binding="{Binding DurationDisplay}" Width="85" />
+                            <DataGridTextColumn Header="المدة" Binding="{Binding DurationDisplay}" Width="90" />
 
                             <!-- Video Offset -->
-                            <DataGridTextColumn Header="Offset" Binding="{Binding OffsetDisplay}" Width="65" />
+                            <DataGridTextColumn Header="الإزاحة" Binding="{Binding OffsetDisplay}" Width="75" />
 
                             <!-- 1-Click Play Action Button -->
-                            <DataGridTemplateColumn Header="Play" Width="80">
+                            <DataGridTemplateColumn Header="التشغيل" Width="85">
                                 <DataGridTemplateColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Button Content="▶ Play"
+                                        <Button Content="▶ تشغيل"
                                                 Style="{StaticResource PlayRowButtonStyle}"
                                                 Command="{Binding DataContext.PlayActivityCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                 CommandParameter="{Binding}"
                                                 IsEnabled="{Binding HasVideo}"
-                                                ToolTip="Jump to exact timestamp in video" />
+                                                ToolTip="القفز التلقائي المباشر إلى توقيت هذا الحدث في الفيديو" />
                                     </DataTemplate>
                                 </DataGridTemplateColumn.CellTemplate>
                             </DataGridTemplateColumn>
@@ -400,57 +427,57 @@
                 </Grid>
             </Border>
 
-            <!-- GRID SPLITTER -->
-            <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" />
+            <!-- SPLITTER -->
+            <GridSplitter Grid.Column="1" Width="10" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" />
 
             <!-- RIGHT PANE: EMBEDDED VIDEO PLAYER -->
             <Border Grid.Column="2"
-                    Background="{StaticResource SurfaceDarkBrush}"
-                    BorderBrush="{StaticResource BorderDarkBrush}"
+                    Background="{StaticResource SurfaceLightBrush}"
+                    BorderBrush="{StaticResource BorderSubtleBrush}"
                     BorderThickness="1"
                     CornerRadius="10"
                     Padding="14">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <!-- Video Info Header -->
+                        <!-- Header -->
                         <RowDefinition Height="Auto" />
                         <!-- Video Surface -->
                         <RowDefinition Height="*" />
-                        <!-- Custom Player Controls -->
+                        <!-- Player Controls Bar -->
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <!-- Now Playing Header -->
-                    <Border Grid.Row="0" Background="{StaticResource CardDarkBrush}" CornerRadius="8" Padding="12,10" Margin="0,0,0,12">
+                    <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="{Binding NowPlayingTitle}" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Text="{Binding NowPlayingSub}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding NowPlayingSub}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" />
                         </StackPanel>
                     </Border>
 
-                    <!-- Video Viewport Surface -->
-                    <Border Grid.Row="1" Background="Black" CornerRadius="8" ClipToBounds="True" Margin="0,0,0,12">
+                    <!-- Video Viewport Surface (Cinema Dark Container for crisp playback) -->
+                    <Border Grid.Row="1" Background="#0B0F19" CornerRadius="8" ClipToBounds="True" Margin="0,0,0,12">
                         <Grid>
-                            <!-- WPF MediaElement -->
+                            <!-- MediaElement -->
                             <MediaElement x:Name="PlayerMediaElement"
                                           LoadedBehavior="Manual"
                                           UnloadedBehavior="Stop"
                                           ScrubbingEnabled="True"
                                           Stretch="Uniform" />
 
-                            <!-- Placeholder when no video loaded -->
-                            <Border x:Name="PlaceholderBorder" Background="#0A0F1D" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                            <!-- Placeholder when no video is loaded -->
+                            <Border x:Name="PlaceholderBorder" Background="#0F172A" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <TextBlock Text="🎥" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,8" />
-                                    <TextBlock Text="Select an activity on the left" FontSize="14" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" />
-                                    <TextBlock Text="Click '▶ Play' to jump directly to its timestamp" FontSize="12" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                                    <TextBlock Text="حدد نشاطاً من القائمة الجانبية" FontSize="14" FontWeight="Bold" Foreground="#E2E8F0" HorizontalAlignment="Center" />
+                                    <TextBlock Text="انقر على '▶ تشغيل' للقفز التلقائي المباشر إلى توقيت الحدث" FontSize="12" Foreground="#94A3B8" HorizontalAlignment="Center" Margin="0,4,0,0" />
                                 </StackPanel>
                             </Border>
                         </Grid>
                     </Border>
 
-                    <!-- Player Controls Bar -->
-                    <Border Grid.Row="2" Background="{StaticResource CardDarkBrush}" CornerRadius="8" Padding="12,10">
+                    <!-- Player Controls Bar (Light Theme) -->
+                    <Border Grid.Row="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,10">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <!-- Scrubber Timeline Slider -->
@@ -473,7 +500,7 @@
                                         Margin="0,0,10,0"
                                         VerticalAlignment="Center"
                                         Cursor="Hand" />
-                                <TextBlock Grid.Column="1" Text="{Binding VideoPositionDisplay}" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding VideoPositionDisplay}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" />
                             </Grid>
 
                             <!-- Transport Buttons -->
@@ -486,9 +513,9 @@
 
                                 <!-- Playback Buttons -->
                                 <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                    <Button Content="⏪ -5s" Style="{StaticResource ActionButtonStyle}" Command="{Binding JumpBackwardCommand}" Margin="0,0,6,0" ToolTip="Jump backward 5 seconds" />
-                                    <Button x:Name="PlayPauseButton" Content="▶ Play" Style="{StaticResource AccentButtonStyle}" Command="{Binding PlayPauseCommand}" Width="70" Margin="0,0,6,0" />
-                                    <Button Content="+5s ⏩" Style="{StaticResource ActionButtonStyle}" Command="{Binding JumpForwardCommand}" ToolTip="Jump forward 5 seconds" />
+                                    <Button Content="⏪ -5ث" Style="{StaticResource ActionButtonStyle}" Command="{Binding JumpBackwardCommand}" Margin="0,0,6,0" ToolTip="تأخير 5 ثوانٍ" />
+                                    <Button x:Name="PlayPauseButton" Content="▶ تشغيل" Style="{StaticResource AccentButtonStyle}" Command="{Binding PlayPauseCommand}" Width="85" Margin="0,0,6,0" />
+                                    <Button Content="+5ث ⏩" Style="{StaticResource ActionButtonStyle}" Command="{Binding JumpForwardCommand}" ToolTip="تقديم 5 ثوانٍ" />
                                 </StackPanel>
 
                                 <!-- Volume Slider -->
@@ -503,15 +530,15 @@
             </Border>
         </Grid>
 
-        <!-- 4. BOTTOM STATUS BAR -->
-        <Border Grid.Row="3" Background="{StaticResource SurfaceDarkBrush}" BorderBrush="{StaticResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="12,6" Margin="0,12,0,0">
+        <!-- 3. BOTTOM STATUS BAR -->
+        <Border Grid.Row="3" Background="{StaticResource SurfaceLightBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="6" Padding="12,7" Margin="0,12,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="1" Text="ActivityMonitor v1.0 • Local Only" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="مراقب الأنشطة v1.0 • محلي وآمن 100%" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
             </Grid>
         </Border>
     </Grid>

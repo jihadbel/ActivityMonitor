@@ -4,24 +4,26 @@
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <ResourceDictionary>
-            <!-- Modern Dark Color Palette -->
-            <Color x:Key="BgDarkColor">#0F172A</Color>
-            <Color x:Key="SurfaceDarkColor">#1E293B</Color>
-            <Color x:Key="CardDarkColor">#334155</Color>
-            <Color x:Key="BorderDarkColor">#475569</Color>
-            <Color x:Key="AccentColor">#6366F1</Color>
-            <Color x:Key="AccentHoverColor">#4F46E5</Color>
-            <Color x:Key="SuccessColor">#10B981</Color>
-            <Color x:Key="WarningColor">#F59E0B</Color>
-            <Color x:Key="DangerColor">#EF4444</Color>
-            <Color x:Key="TextPrimaryColor">#F8FAFC</Color>
-            <Color x:Key="TextSecondaryColor">#94A3B8</Color>
-            <Color x:Key="TextMutedColor">#64748B</Color>
+            <!-- Modern Clean Light Color Palette -->
+            <Color x:Key="BgLightColor">#F8FAFC</Color>
+            <Color x:Key="SurfaceLightColor">#FFFFFF</Color>
+            <Color x:Key="CardLightColor">#F1F5F9</Color>
+            <Color x:Key="BorderLightColor">#CBD5E1</Color>
+            <Color x:Key="BorderSubtleColor">#E2E8F0</Color>
+            <Color x:Key="AccentColor">#4F46E5</Color>
+            <Color x:Key="AccentHoverColor">#4338CA</Color>
+            <Color x:Key="SuccessColor">#059669</Color>
+            <Color x:Key="WarningColor">#D97706</Color>
+            <Color x:Key="DangerColor">#DC2626</Color>
+            <Color x:Key="TextPrimaryColor">#0F172A</Color>
+            <Color x:Key="TextSecondaryColor">#475569</Color>
+            <Color x:Key="TextMutedColor">#94A3B8</Color>
 
-            <SolidColorBrush x:Key="BgDarkBrush" Color="{StaticResource BgDarkColor}" />
-            <SolidColorBrush x:Key="SurfaceDarkBrush" Color="{StaticResource SurfaceDarkColor}" />
-            <SolidColorBrush x:Key="CardDarkBrush" Color="{StaticResource CardDarkColor}" />
-            <SolidColorBrush x:Key="BorderDarkBrush" Color="{StaticResource BorderDarkColor}" />
+            <SolidColorBrush x:Key="BgLightBrush" Color="{StaticResource BgLightColor}" />
+            <SolidColorBrush x:Key="SurfaceLightBrush" Color="{StaticResource SurfaceLightColor}" />
+            <SolidColorBrush x:Key="CardLightBrush" Color="{StaticResource CardLightColor}" />
+            <SolidColorBrush x:Key="BorderLightBrush" Color="{StaticResource BorderLightColor}" />
+            <SolidColorBrush x:Key="BorderSubtleBrush" Color="{StaticResource BorderSubtleColor}" />
             <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
             <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}" />
             <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
@@ -31,10 +33,10 @@
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" />
             <SolidColorBrush x:Key="TextMutedBrush" Color="{StaticResource TextMutedColor}" />
 
-            <!-- Global Control Styles -->
+            <!-- Global Window Style -->
             <Style TargetType="Window">
-                <Setter Property="FontFamily" Value="Segoe UI, -apple-system, BlinkMacSystemFont" />
-                <Setter Property="Background" Value="{StaticResource BgDarkBrush}" />
+                <Setter Property="FontFamily" Value="Segoe UI, Tahoma, Arial, sans-serif" />
+                <Setter Property="Background" Value="{StaticResource BgLightBrush}" />
                 <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
             </Style>
 

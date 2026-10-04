@@ -62,7 +62,7 @@ public partial class MainWindow : Window
         {
             if (_viewModel != null)
             {
-                _viewModel.StatusMessage = $"Recording file does not exist: {filePath}";
+                _viewModel.StatusMessage = $"ملف التسجيل غير موجود: {filePath}";
             }
             return;
         }
@@ -80,7 +80,7 @@ public partial class MainWindow : Window
         PlayerMediaElement.Play();
         _playbackTimer.Start();
 
-        PlayPauseButton.Content = "⏸ Pause";
+        PlayPauseButton.Content = "⏸ إيقاف مؤقت";
         if (_viewModel != null)
         {
             _viewModel.IsPlaying = true;
@@ -92,14 +92,14 @@ public partial class MainWindow : Window
     {
         PlayerMediaElement.Pause();
         _playbackTimer.Stop();
-        PlayPauseButton.Content = "▶ Play";
+        PlayPauseButton.Content = "▶ تشغيل";
     }
 
     private void OnRequestMediaResume()
     {
         PlayerMediaElement.Play();
         _playbackTimer.Start();
-        PlayPauseButton.Content = "⏸ Pause";
+        PlayPauseButton.Content = "⏸ إيقاف مؤقت";
     }
 
     private void OnRequestMediaSeek(TimeSpan target)
@@ -137,7 +137,7 @@ public partial class MainWindow : Window
         {
             _viewModel.IsPlaying = false;
         }
-        PlayPauseButton.Content = "▶ Play";
+        PlayPauseButton.Content = "▶ تشغيل";
     }
 
     private void OnMediaFailed(object? sender, ExceptionRoutedEventArgs e)
@@ -145,10 +145,10 @@ public partial class MainWindow : Window
         _playbackTimer.Stop();
         if (_viewModel != null)
         {
-            _viewModel.StatusMessage = $"Media playback error: {e.ErrorException?.Message}";
+            _viewModel.StatusMessage = $"خطأ أثناء تشغيل المقطع: {e.ErrorException?.Message}";
             _viewModel.IsPlaying = false;
         }
-        PlayPauseButton.Content = "▶ Play";
+        PlayPauseButton.Content = "▶ تشغيل";
     }
 
     private void OnPlaybackTimerTick(object? sender, EventArgs e)

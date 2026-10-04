@@ -25,7 +25,7 @@ public class ViewerViewModelTests
             RecordingFileName = "2026-10-04_12-00-00.mp4"
         };
 
-        Assert.Equal("13m 4s", item.DurationDisplay);
+        Assert.Equal("13د 4ث", item.DurationDisplay);
         Assert.Equal("02:56", item.OffsetDisplay);
         Assert.Equal("#38BDF8", item.AppBadgeColor);
     }
@@ -41,7 +41,7 @@ public class ViewerViewModelTests
         };
 
         Assert.Equal("#94A3B8", item.AppBadgeColor);
-        Assert.Equal("5m 0s", item.DurationDisplay);
+        Assert.Equal("5د 0ث", item.DurationDisplay);
         Assert.Equal("00:00", item.OffsetDisplay);
     }
 

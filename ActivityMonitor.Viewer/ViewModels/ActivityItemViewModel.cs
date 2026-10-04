@@ -26,9 +26,9 @@ public class ActivityItemViewModel
             var ts = TimeSpan.FromSeconds(Math.Max(1, DurationSeconds));
             if (ts.TotalHours >= 1)
             {
-                return $"{(int)ts.TotalHours}h {ts.Minutes}m {ts.Seconds}s";
+                return $"{(int)ts.TotalHours}س {ts.Minutes}د {ts.Seconds}ث";
             }
-            return $"{ts.Minutes}m {ts.Seconds}s";
+            return $"{ts.Minutes}د {ts.Seconds}ث";
         }
     }
 
