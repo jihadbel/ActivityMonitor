@@ -7,7 +7,7 @@
         mc:Ignorable="d"
         Title="مراقب الأنشطة - مستعرض التقارير ومشغل الفيديو المتزامن"
         Height="860" Width="1420"
-        MinHeight="700" MinWidth="1100"
+        MinHeight="520" MinWidth="680"
         WindowStartupLocation="CenterScreen"
         FlowDirection="RightToLeft"
         Background="{StaticResource BgLightBrush}"
@@ -18,6 +18,27 @@
     </Window.DataContext>
 
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+        <!-- Modern ComboBox Style -->
+        <Style TargetType="ComboBox">
+            <Setter Property="Height" Value="32" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="{StaticResource SurfaceLightBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderLightBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="8,4" />
+        </Style>
+
+        <!-- Modern CheckBox Style -->
+        <Style TargetType="CheckBox">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
         <!-- Light Action Button Style -->
         <Style x:Key="ActionButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="{StaticResource SurfaceLightBrush}" />
@@ -118,7 +139,9 @@
         </Style>
     </Window.Resources>
 
-    <Grid Margin="18">
+    <Grid x:Name="RootLayout" UseLayoutRounding="True" SnapsToDevicePixels="True">
+        <!-- MAIN DASHBOARD CONTENT -->
+        <Grid x:Name="DashboardRoot" Margin="18">
         <Grid.RowDefinitions>
             <!-- 0. Header Bar -->
             <RowDefinition Height="Auto" />
@@ -131,14 +154,19 @@
         </Grid.RowDefinitions>
 
         <!-- 0. TOP HEADER BAR -->
-        <Border Grid.Row="0"
+        <Border x:Name="HeaderBorder" Grid.Row="0"
                 Background="{StaticResource SurfaceLightBrush}"
                 BorderBrush="{StaticResource BorderSubtleBrush}"
                 BorderThickness="1"
                 CornerRadius="10"
                 Padding="16,12"
                 Margin="0,0,0,14">
-            <Grid>
+            <Grid x:Name="HeaderLayout">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="0" />
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
@@ -146,7 +174,7 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Logo & Arabic App Title -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                <StackPanel x:Name="AppTitlePanel" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <Border Width="40" Height="40" CornerRadius="10" Background="{StaticResource AccentBrush}" Margin="0,0,12,0">
                         <TextBlock Text="▶" Foreground="White" FontSize="18" FontWeight="Bold"
                                    HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,2,0" />
@@ -158,16 +186,16 @@
                 </StackPanel>
 
                 <!-- Date Controls -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <WrapPanel x:Name="DateControlsPanel" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <Button Content="▶" Style="{StaticResource ActionButtonStyle}" Command="{Binding NextDayCommand}" Width="36" Margin="0,0,6,0" ToolTip="اليوم التالي" />
                     <DatePicker SelectedDate="{Binding SelectedDate, Mode=TwoWay}" Width="145" Height="32" VerticalContentAlignment="Center" Background="{StaticResource SurfaceLightBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderLightBrush}" />
                     <Button Content="◀" Style="{StaticResource ActionButtonStyle}" Command="{Binding PreviousDayCommand}" Width="36" Margin="6,0,8,0" ToolTip="اليوم السابق" />
                     <Button Content="اليوم" Style="{StaticResource ActionButtonStyle}" Command="{Binding TodayCommand}" Margin="0,0,8,0" />
                     <Button Content="🔄 تحديث" Style="{StaticResource ActionButtonStyle}" Command="{Binding RefreshCommand}" />
-                </StackPanel>
+                </WrapPanel>
 
                 <!-- Service & Agent Controls -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                <WrapPanel x:Name="ActionControlsPanel" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
                     <!-- Service Control Badge -->
                     <Border Background="{StaticResource CardLightBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="10,4" Margin="0,0,10,0">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -219,22 +247,17 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Folders -->
+                    <!-- Folders & Settings -->
+                    <Button Content="⬇ تصدير اليوم" Style="{StaticResource AccentButtonStyle}" Command="{Binding ExportSelectedDayCommand}" Margin="0,0,6,0" ToolTip="إنشاء تقارير Excel وCSV وTXT لليوم المحدد" />
                     <Button Content="📁 التقارير" Style="{StaticResource ActionButtonStyle}" Command="{Binding OpenReportsFolderCommand}" Margin="0,0,6,0" ToolTip="فتح مجلد التقارير اليومية" />
-                    <Button Content="🎥 التسجيلات" Style="{StaticResource ActionButtonStyle}" Command="{Binding OpenRecordingsFolderCommand}" ToolTip="فتح مجلد مقاطع الفيديو المسجلة" />
-                </StackPanel>
+                    <Button Content="🎥 التسجيلات" Style="{StaticResource ActionButtonStyle}" Command="{Binding OpenRecordingsFolderCommand}" Margin="0,0,6,0" ToolTip="فتح مجلد مقاطع الفيديو المسجلة" />
+                    <Button Content="⚙️ الإعدادات" Style="{StaticResource AccentButtonStyle}" Command="{Binding OpenSettingsCommand}" ToolTip="تخصيص إعدادات المراقبة وبدء التشغيل التلقائي" />
+                </WrapPanel>
             </Grid>
         </Border>
 
         <!-- 1. KPI SUMMARY METRIC CARDS -->
-        <Grid Grid.Row="1" Margin="0,0,0,14">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+        <UniformGrid x:Name="KpiPanel" Grid.Row="1" Columns="6" Margin="0,0,0,14">
 
             <!-- Card 1: Active Work Time -->
             <Border Grid.Column="0" Background="{StaticResource SurfaceLightBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="0,0,8,0">
@@ -269,27 +292,61 @@
             </Border>
 
             <!-- Card 5: Recordings Count -->
-            <Border Grid.Column="4" Background="{StaticResource SurfaceLightBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="4,0,0,0">
+            <Border Grid.Column="4" Background="{StaticResource SurfaceLightBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="14,12" Margin="4,0,8,0">
                 <StackPanel>
                     <TextBlock Text="مقاطع الفيديو المسجلة" FontSize="11" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}" />
                     <TextBlock Text="{Binding RecordingsCount}" FontSize="20" FontWeight="Bold" Margin="0,4,0,0" Foreground="{StaticResource TextPrimaryBrush}" />
                 </StackPanel>
             </Border>
-        </Grid>
+
+            <!-- Card 6: Quiet system health summary -->
+            <Border Grid.Column="5" Background="{StaticResource SurfaceLightBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="4,0,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Ellipse Grid.Column="0" Width="11" Height="11" Margin="0,0,9,0" VerticalAlignment="Center">
+                        <Ellipse.Style>
+                            <Style TargetType="Ellipse">
+                                <Setter Property="Fill" Value="{StaticResource WarningBrush}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsSystemHealthy}" Value="True">
+                                        <Setter Property="Fill" Value="{StaticResource SuccessBrush}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Ellipse.Style>
+                    </Ellipse>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="{Binding SystemHealthStatusText}" FontSize="12" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" />
+                        <TextBlock Text="{Binding SystemHealthDetailText}" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" ToolTip="{Binding SystemHealthDetailText}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </UniformGrid>
 
         <!-- 2. MAIN CONTENT: SPLIT VIEW (TIMELINE & VIDEO PLAYER) -->
-        <Grid Grid.Row="2">
+        <ScrollViewer x:Name="MainContentScrollViewer" Grid.Row="2"
+                      HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled"
+                      HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+        <Grid x:Name="MainContentGrid">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="0" />
+                <RowDefinition Height="0" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <!-- Left: Activities Timeline -->
-                <ColumnDefinition Width="1.2*" MinWidth="480" />
+                <ColumnDefinition Width="1.2*" />
                 <!-- Splitter -->
                 <ColumnDefinition Width="10" />
                 <!-- Right: Embedded Video Player -->
-                <ColumnDefinition Width="1*" MinWidth="420" />
+                <ColumnDefinition Width="1*" />
             </Grid.ColumnDefinitions>
 
             <!-- ACTIVITIES TIMELINE PANE -->
-            <Border Grid.Column="0"
+            <Border x:Name="ActivitiesPane" Grid.Column="0"
                     Background="{StaticResource SurfaceLightBrush}"
                     BorderBrush="{StaticResource BorderSubtleBrush}"
                     BorderThickness="1"
@@ -297,15 +354,74 @@
                     Padding="14">
                 <Grid>
                     <Grid.RowDefinitions>
+                        <!-- Visual day timeline -->
+                        <RowDefinition Height="Auto" />
                         <!-- Search / Filter bar -->
                         <RowDefinition Height="Auto" />
                         <!-- DataGrid -->
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
+                    <!-- Compact interactive day timeline -->
+                    <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8" Padding="10,8" Margin="0,0,0,10">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,5">
+                                <TextBlock Text="الخط الزمني لليوم" FontSize="11" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" />
+                                <TextBlock Text="انقر على أي كتلة لتحديد النشاط" FontSize="10" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Left" />
+                            </Grid>
+                            <Viewbox Stretch="Fill" StretchDirection="Both" Height="48" FlowDirection="LeftToRight">
+                                <Grid Width="960" Height="48">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="18" />
+                                        <RowDefinition Height="26" />
+                                    </Grid.RowDefinitions>
+                                    <Grid Grid.Row="0">
+                                        <TextBlock Text="00:00" HorizontalAlignment="Left" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
+                                        <TextBlock Text="06:00" Margin="240,0,0,0" HorizontalAlignment="Left" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
+                                        <TextBlock Text="12:00" HorizontalAlignment="Center" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
+                                        <TextBlock Text="18:00" Margin="0,0,240,0" HorizontalAlignment="Right" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
+                                        <TextBlock Text="24:00" HorizontalAlignment="Right" FontSize="9" Foreground="{StaticResource TextMutedBrush}" />
+                                    </Grid>
+                                    <ItemsControl Grid.Row="1" ItemsSource="{Binding TimelineBlocks}">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <Canvas Width="960" Height="22" Background="#E2E8F0" />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemContainerStyle>
+                                            <Style TargetType="ContentPresenter">
+                                                <Setter Property="Canvas.Left" Value="{Binding Left}" />
+                                                <Setter Property="Canvas.Top" Value="2" />
+                                            </Style>
+                                        </ItemsControl.ItemContainerStyle>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Button Width="{Binding Width}" Height="18"
+                                                        Background="{Binding Color}" BorderThickness="0" Padding="0"
+                                                        Cursor="Hand" Opacity="0.9" ToolTip="{Binding ToolTip}"
+                                                        Command="{Binding DataContext.SelectTimelineActivityCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding Activity}" />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Grid>
+                            </Viewbox>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Filter input -->
-                    <Grid Grid.Row="0" Margin="0,0,0,12">
-                        <TextBox Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    <Grid x:Name="FilterGrid" Grid.Row="1" Margin="0,0,0,12">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="0" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="145" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="SearchTextBox" Grid.Column="0" Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  Background="#F8FAFC"
                                  Foreground="{StaticResource TextPrimaryBrush}"
                                  BorderBrush="{StaticResource BorderLightBrush}"
@@ -336,10 +452,17 @@
                                 </Style>
                             </TextBox.Style>
                         </TextBox>
+                        <ComboBox x:Name="ActivityFilterComboBox" Grid.Column="1" Margin="8,0,0,0"
+                                  ItemsSource="{Binding ActivityFilters}"
+                                  DisplayMemberPath="DisplayName"
+                                  SelectedValuePath="Key"
+                                  SelectedValue="{Binding SelectedActivityFilterKey, Mode=TwoWay}" />
+                        <TextBlock x:Name="FilteredCountText" Grid.Column="2" Text="{Binding FilteredCountDisplay}" VerticalAlignment="Center" Margin="10,0" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" />
+                        <Button x:Name="ClearFiltersButton" Grid.Column="3" Content="مسح" Style="{StaticResource ActionButtonStyle}" Command="{Binding ClearFiltersCommand}" Padding="9,5" />
                     </Grid>
 
                     <!-- Activities DataGrid -->
-                    <DataGrid Grid.Row="1"
+                    <DataGrid Grid.Row="2"
                               ItemsSource="{Binding FilteredActivities}"
                               SelectedItem="{Binding SelectedActivity, Mode=TwoWay}"
                               AutoGenerateColumns="False"
@@ -424,14 +547,24 @@
                             </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
+
+                    <Border Grid.Row="2" Background="#FAFCFF" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="8"
+                            Visibility="{Binding IsActivityListEmpty, Converter={StaticResource BoolToVis}}">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock Text="⌕" FontSize="34" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" />
+                            <TextBlock Text="لا توجد أنشطة مطابقة" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" Margin="0,6,0,0" />
+                            <TextBlock Text="غيّر الفلتر أو امسح عبارة البحث" FontSize="11" Foreground="{StaticResource TextMutedBrush}" HorizontalAlignment="Center" Margin="0,3,0,10" />
+                            <Button Content="مسح الفلاتر" Style="{StaticResource ActionButtonStyle}" Command="{Binding ClearFiltersCommand}" />
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Border>
 
             <!-- SPLITTER -->
-            <GridSplitter Grid.Column="1" Width="10" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" />
+            <GridSplitter x:Name="MainGridSplitter" Grid.Column="1" Width="10" HorizontalAlignment="Stretch" Background="Transparent" Cursor="SizeWE" />
 
             <!-- RIGHT PANE: EMBEDDED VIDEO PLAYER -->
-            <Border Grid.Column="2"
+            <Border x:Name="PlayerPane" Grid.Column="2"
                     Background="{StaticResource SurfaceLightBrush}"
                     BorderBrush="{StaticResource BorderSubtleBrush}"
                     BorderThickness="1"
@@ -448,20 +581,35 @@
                     </Grid.RowDefinitions>
 
                     <!-- Now Playing Header -->
-                    <Border Grid.Row="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,12">
-                        <StackPanel>
-                            <TextBlock Text="{Binding NowPlayingTitle}" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" />
-                            <TextBlock Text="{Binding NowPlayingSub}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
+                    <Border x:Name="NowPlayingHeader" Grid.Row="0" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,10" Margin="0,0,0,12">
+                        <Grid x:Name="NowPlayingGrid">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel x:Name="NowPlayingTitlePanel" Grid.Column="0">
+                                <TextBlock Text="{Binding NowPlayingTitle}" FontSize="14" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding NowPlayingSub}" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,3,0,0" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                            <StackPanel x:Name="RecordingPartsPanel" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                                <Button Content="▶" Style="{StaticResource ActionButtonStyle}" Command="{Binding NextRecordingPartCommand}" IsEnabled="{Binding CanPlayNextRecordingPart}" Width="34" Padding="4" ToolTip="المقطع التالي المرتبط بالنشاط" />
+                                <TextBlock Text="{Binding CurrentRecordingPartDisplay}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="8,0" MaxWidth="190" TextTrimming="CharacterEllipsis" ToolTip="{Binding CurrentRecordingPartDisplay}" />
+                                <Button Content="◀" Style="{StaticResource ActionButtonStyle}" Command="{Binding PreviousRecordingPartCommand}" IsEnabled="{Binding CanPlayPreviousRecordingPart}" Width="34" Padding="4" ToolTip="المقطع السابق المرتبط بالنشاط" />
+                            </StackPanel>
+                        </Grid>
                     </Border>
 
                     <!-- Video Viewport Surface (Cinema Dark Container for crisp playback) -->
-                    <Border Grid.Row="1" Background="#0B0F19" CornerRadius="8" ClipToBounds="True" Margin="0,0,0,12">
+                    <Border x:Name="VideoSurface" Grid.Row="1" Background="#0B0F19" CornerRadius="8" ClipToBounds="True" Margin="0,0,0,12">
                         <Grid>
                             <!-- MediaElement -->
                             <MediaElement x:Name="PlayerMediaElement"
                                           LoadedBehavior="Manual"
-                                          UnloadedBehavior="Stop"
+                                          UnloadedBehavior="Manual"
                                           ScrubbingEnabled="True"
                                           Stretch="Uniform" />
 
@@ -469,15 +617,15 @@
                             <Border x:Name="PlaceholderBorder" Background="#0F172A" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                                 <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                                     <TextBlock Text="🎥" FontSize="48" HorizontalAlignment="Center" Margin="0,0,0,8" />
-                                    <TextBlock Text="حدد نشاطاً من القائمة الجانبية" FontSize="14" FontWeight="Bold" Foreground="#E2E8F0" HorizontalAlignment="Center" />
-                                    <TextBlock Text="انقر على '▶ تشغيل' للقفز التلقائي المباشر إلى توقيت الحدث" FontSize="12" Foreground="#94A3B8" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                                    <TextBlock Text="حدد نشاطاً من القائمة الجانبية" FontSize="14" FontWeight="Bold" Foreground="#E2E8F0" TextWrapping="Wrap" TextAlignment="Center" />
+                                    <TextBlock Text="انقر على '▶ تشغيل' للقفز التلقائي المباشر إلى توقيت الحدث" FontSize="12" Foreground="#94A3B8" TextWrapping="Wrap" TextAlignment="Center" Margin="8,4,8,0" />
                                 </StackPanel>
                             </Border>
                         </Grid>
                     </Border>
 
                     <!-- Player Controls Bar (Light Theme) -->
-                    <Border Grid.Row="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,10">
+                    <Border x:Name="PlayerControlsBorder" Grid.Row="2" Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="8" Padding="12,10">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <!-- Scrubber Timeline Slider -->
@@ -504,7 +652,11 @@
                             </Grid>
 
                             <!-- Transport Buttons -->
-                            <Grid Grid.Row="1">
+                            <Grid x:Name="TransportGrid" Grid.Row="1">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
@@ -512,14 +664,24 @@
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Playback Buttons -->
-                                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                                <StackPanel x:Name="PlaybackButtonsPanel" Grid.Column="0" Orientation="Horizontal">
                                     <Button Content="⏪ -5ث" Style="{StaticResource ActionButtonStyle}" Command="{Binding JumpBackwardCommand}" Margin="0,0,6,0" ToolTip="تأخير 5 ثوانٍ" />
                                     <Button x:Name="PlayPauseButton" Content="▶ تشغيل" Style="{StaticResource AccentButtonStyle}" Command="{Binding PlayPauseCommand}" Width="85" Margin="0,0,6,0" />
                                     <Button Content="+5ث ⏩" Style="{StaticResource ActionButtonStyle}" Command="{Binding JumpForwardCommand}" ToolTip="تقديم 5 ثوانٍ" />
                                 </StackPanel>
 
+                                <Button x:Name="FullScreenButton"
+                                        Grid.Column="1"
+                                        Content="⛶"
+                                        Style="{StaticResource ActionButtonStyle}"
+                                        HorizontalAlignment="Center"
+                                        Width="38"
+                                        Padding="6,5"
+                                        AutomationProperties.Name="ملء الشاشة"
+                                        ToolTip="عرض الفيديو بملء الشاشة (F11)" />
+
                                 <!-- Volume Slider -->
-                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                <StackPanel x:Name="VolumePanel" Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
                                     <TextBlock Text="🔊" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0" />
                                     <Slider x:Name="VolumeSlider" Width="90" Minimum="0" Maximum="1" Value="{Binding Volume, Mode=TwoWay}" VerticalAlignment="Center" />
                                 </StackPanel>
@@ -529,6 +691,7 @@
                 </Grid>
             </Border>
         </Grid>
+        </ScrollViewer>
 
         <!-- 3. BOTTOM STATUS BAR -->
         <Border Grid.Row="3" Background="{StaticResource SurfaceLightBrush}" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1" CornerRadius="6" Padding="12,7" Margin="0,12,0,0">
@@ -537,9 +700,386 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="1" Text="مراقب الأنشطة v1.0 • محلي وآمن 100%" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="0" Text="{Binding StatusMessage}" ToolTip="{Binding StatusMessage}" TextTrimming="CharacterEllipsis" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" />
+                <TextBlock x:Name="FooterVersionText" Grid.Column="1" Text="مراقب الأنشطة v1.0 • محلي وآمن 100%" FontSize="11" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
             </Grid>
         </Border>
     </Grid>
+
+    <!-- 4. SETTINGS MODAL OVERLAY -->
+    <Grid Background="#800F172A"
+          Visibility="{Binding IsSettingsOpen, Converter={StaticResource BoolToVis}}"
+          Panel.ZIndex="1000">
+
+        <Border x:Name="SettingsDialog" Background="{StaticResource SurfaceLightBrush}"
+                BorderBrush="{StaticResource BorderLightBrush}"
+                BorderThickness="1"
+                CornerRadius="14"
+                MaxWidth="880"
+                MaxHeight="740"
+                Margin="24"
+                VerticalAlignment="Center"
+                HorizontalAlignment="Center"
+                Padding="24">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="30" ShadowDepth="8" Direction="270" Color="#000000" Opacity="0.25" />
+            </Border.Effect>
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <!-- Header -->
+                    <RowDefinition Height="Auto" />
+                    <!-- Content -->
+                    <RowDefinition Height="*" />
+                    <!-- Footer -->
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Header -->
+                <Grid Grid.Row="0" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="⚙️ إعدادات النظام والمراقبة" FontSize="20" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" />
+                        <TextBlock Text="تخصيص بدء التشغيل التلقائي مع ويندوز، تسجيل الشاشة والصوت، وفترات حفظ البيانات"
+                                   FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="✕"
+                            Style="{StaticResource ActionButtonStyle}"
+                            Command="{Binding CloseSettingsCommand}"
+                            Width="34" Height="34" FontSize="14" FontWeight="Bold"
+                            Padding="0" VerticalAlignment="Top" ToolTip="إغلاق" />
+                </Grid>
+
+                <Separator Grid.Row="0" VerticalAlignment="Bottom" Margin="0,0,0,0" Background="{StaticResource BorderSubtleBrush}" />
+
+                <!-- Content (Scrollable) -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,14,0,14" Padding="0,0,10,0">
+                    <StackPanel>
+                        <!-- Section 1: Windows Autostart -->
+                        <Border Background="{StaticResource CardLightBrush}"
+                                BorderBrush="{StaticResource BorderSubtleBrush}"
+                                BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="🚀 بدء التشغيل التلقائي مع ويندوز" FontSize="15" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,10" />
+
+                                <CheckBox IsChecked="{Binding Settings.StartServiceWithWindows, Mode=TwoWay}" Margin="0,0,0,8">
+                                    <StackPanel Margin="6,0,0,0">
+                                        <TextBlock Text="بدء خدمة النظام (ActivityMonitor.Service) تلقائياً عند إقلاع ويندوز" FontWeight="SemiBold" FontSize="13" />
+                                        <TextBlock Text="تشغيل خدمة الخلفية لصيانة قاعدة البيانات وتنفيذ دورات أرشفة وحذف المقاطع تلقائياً." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </CheckBox>
+
+                                <CheckBox IsChecked="{Binding Settings.StartAgentAtLogon, Mode=TwoWay}" Margin="0,4,0,0">
+                                    <StackPanel Margin="6,0,0,0">
+                                        <TextBlock Text="بدء عميل التسجيل والمراقبة (ActivityMonitor.Agent) تلقائياً عند تسجيل الدخول" FontWeight="SemiBold" FontSize="13" />
+                                        <TextBlock Text="بدء تسجيل الأنشطة والشاشة فور تسجيل دخول أي مستخدم إلى سطح المكتب وبدون ظهور أي نوافذ." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </CheckBox>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Section 2: Screen & Audio Recording -->
+                        <Border Background="{StaticResource CardLightBrush}"
+                                BorderBrush="{StaticResource BorderSubtleBrush}"
+                                BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="🎥 تسجيل الشاشة والصوت" FontSize="15" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,10" />
+
+                                <CheckBox IsChecked="{Binding Settings.ScreenRecordingEnabled, Mode=TwoWay}" Margin="0,0,0,8">
+                                    <StackPanel Margin="6,0,0,0">
+                                        <TextBlock Text="تفعيل تسجيل الشاشة (فيديو MP4 متزامن)" FontWeight="SemiBold" FontSize="13" />
+                                        <TextBlock Text="التقاط نشاط الشاشة بصمت وبدون أي حدود صفراء أو وميض." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </CheckBox>
+
+                                <CheckBox IsChecked="{Binding Settings.RecordOnlyWhenUserActive, Mode=TwoWay}" Margin="0,0,0,8">
+                                    <StackPanel Margin="6,0,0,0">
+                                        <TextBlock Text="التسجيل فقط أثناء نشاط المستخدم" FontWeight="SemiBold" FontSize="13" />
+                                        <TextBlock Text="يبدأ الفيديو مع الماوس أو لوحة المفاتيح، ويتوقف مع أحداث التطبيقات بعد بلوغ مدة الخمول." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </CheckBox>
+
+                                <!-- Microphone Main Toggle -->
+                                <CheckBox IsChecked="{Binding Settings.RecordMicrophone, Mode=TwoWay}" Margin="0,0,0,6">
+                                    <StackPanel Margin="6,0,0,0">
+                                        <TextBlock Text="تسجيل صوت الميكروفون 🎙️" FontWeight="SemiBold" FontSize="13" />
+                                        <TextBlock Text="تسجيل صوت الميكروفون ودمجه بصوت AAC نقي مع مقطع الفيديو المسجل." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </CheckBox>
+
+                                <!-- Microphone Settings & Live VU Meter Sub-Panel -->
+                                <Border Background="#F8FAFC"
+                                        BorderBrush="#CBD5E1"
+                                        BorderThickness="1"
+                                        CornerRadius="8"
+                                        Padding="14,12"
+                                        Margin="24,2,0,12"
+                                        Visibility="{Binding Settings.RecordMicrophone, Converter={StaticResource BoolToVis}}">
+                                    <StackPanel>
+                                        <!-- Device Selection Row -->
+                                        <Grid Margin="0,0,0,10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="جهاز الميكروفون:" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" />
+                                            <ComboBox Grid.Column="2"
+                                                      ItemsSource="{Binding Settings.MicrophoneDevices}"
+                                                      SelectedItem="{Binding Settings.SelectedMicrophoneDevice, Mode=TwoWay}"
+                                                      DisplayMemberPath="DisplayName" />
+                                        </Grid>
+
+                                        <!-- Live Ambient VU Audio Meter -->
+                                        <Grid Margin="0,0,0,10">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Header & Live Status Badge -->
+                                            <Grid Grid.Row="0" Margin="0,0,0,4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="مستوى الصوت المحيط المباشر (اختبار فوري):" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Settings.AudioStatusText}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" />
+                                            </Grid>
+
+                                            <!-- Progress Bar (VU Meter) -->
+                                            <Border Grid.Row="1" Background="#E2E8F0" Height="14" CornerRadius="7" ClipToBounds="True">
+                                                <ProgressBar Value="{Binding Settings.AudioPeakLevel, Mode=OneWay}"
+                                                             Minimum="0" Maximum="100"
+                                                             Height="14"
+                                                             BorderThickness="0"
+                                                             Background="Transparent">
+                                                    <ProgressBar.Foreground>
+                                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                                            <GradientStop Color="#10B981" Offset="0.0" />
+                                                            <GradientStop Color="#10B981" Offset="0.6" />
+                                                            <GradientStop Color="#F59E0B" Offset="0.85" />
+                                                            <GradientStop Color="#EF4444" Offset="1.0" />
+                                                        </LinearGradientBrush>
+                                                    </ProgressBar.Foreground>
+                                                </ProgressBar>
+                                            </Border>
+
+                                            <!-- Meter Scale Ticks -->
+                                            <Grid Grid.Row="2" Margin="2,3,2,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="0% (صامت)" FontSize="9" Foreground="#94A3B8" HorizontalAlignment="Left" />
+                                                <TextBlock Grid.Column="1" Text="50% (كلام عادي)" FontSize="9" Foreground="#94A3B8" HorizontalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="100% (أقصى صوت)" FontSize="9" Foreground="#94A3B8" HorizontalAlignment="Right" />
+                                            </Grid>
+                                        </Grid>
+
+                                        <!-- Microphone Gain / Volume Sensitivity Slider -->
+                                        <Grid Margin="0,0,0,10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="50" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="تضخيم الصوت:" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            <Slider Grid.Column="2"
+                                                    Minimum="0.5" Maximum="2.0"
+                                                    Value="{Binding Settings.MicrophoneVolume, Mode=TwoWay}"
+                                                    SmallChange="0.1" LargeChange="0.25"
+                                                    TickFrequency="0.25" IsSnapToTickEnabled="False"
+                                                    VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="4" Text="{Binding Settings.MicrophoneVolumePercentDisplay}"
+                                                       FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentBrush}"
+                                                       VerticalAlignment="Center" HorizontalAlignment="Right" />
+                                        </Grid>
+
+                                        <!-- Windows Taskbar Microphone Privacy Notice -->
+                                        <Border Background="#FEF3C7" BorderBrush="#FDE68A" BorderThickness="1" CornerRadius="6" Padding="10,8">
+                                            <StackPanel>
+                                                <TextBlock Text="⚠️ تنبيه الخصوصية لنظام ويندوز (Windows Privacy):" FontWeight="Bold" FontSize="11" Foreground="#92400E" />
+                                                <TextBlock Text="تسجيل الميكروفون وصوت النظام اختياريان ومعطلان افتراضياً. عند تفعيل الميكروفون تظهر مؤشرات الخصوصية الخاصة بويندوز، ويمكن إيقاف التسجيل من هذه الإعدادات."
+                                                           FontSize="10.5" Foreground="#78350F" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- System Audio Loopback Toggle -->
+                                <CheckBox IsChecked="{Binding Settings.RecordSystemAudio, Mode=TwoWay}" Margin="0,0,0,8">
+                                    <StackPanel Margin="6,0,0,0">
+                                        <TextBlock Text="تسجيل صوت النظام ومكبرات الصوت 🔊" FontWeight="SemiBold" FontSize="13" />
+                                        <TextBlock Text="التقاط صوت البرامج والسماعات عند تفعيل هذا الخيار. تأكد من علم المشاركين في المكالمات بالتسجيل." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </CheckBox>
+
+                                <CheckBox IsChecked="{Binding Settings.IsFragmentedMp4Enabled, Mode=TwoWay}" Margin="0,0,0,12">
+                                    <StackPanel Margin="6,0,0,0">
+                                        <TextBlock Text="حفظ مقاطع الفيديو كأجزاء فورية (Fragmented MP4) ⚡ (موصى به)" FontWeight="SemiBold" FontSize="13" />
+                                        <TextBlock Text="حفظ وتفريغ أجزاء الفيديو على القرص في الوقت الفعلي؛ يحمي الملف من التلف حتى لو انقطع التيار الكهربائي فجأة." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </CheckBox>
+
+                                <!-- Recording Options Grid -->
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Segment Duration -->
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="مدة المقطع الواحد:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                        <ComboBox SelectedIndex="{Binding Settings.SelectedSegmentMinutesIndex, Mode=TwoWay}">
+                                            <ComboBoxItem Content="دقيقة واحدة (سريع وفوري)" />
+                                            <ComboBoxItem Content="دقيقتان" />
+                                            <ComboBoxItem Content="5 دقائق (متوازن)" />
+                                            <ComboBoxItem Content="10 دقائق (افتراضي)" />
+                                            <ComboBoxItem Content="15 دقيقة" />
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <!-- Frame Rate -->
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="معدل الإطارات (FPS):" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                        <ComboBox SelectedIndex="{Binding Settings.SelectedFrameRateIndex, Mode=TwoWay}">
+                                            <ComboBoxItem Content="10 إطارات/ث (خفيف)" />
+                                            <ComboBoxItem Content="15 إطاراً/ث (متوازن)" />
+                                            <ComboBoxItem Content="30 إطاراً/ث (سلس)" />
+                                        </ComboBox>
+                                    </StackPanel>
+
+                                    <!-- Video Quality -->
+                                    <StackPanel Grid.Column="4">
+                                        <TextBlock Text="جودة الفيديو (الضغط):" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                        <ComboBox SelectedIndex="{Binding Settings.SelectedVideoQualityIndex, Mode=TwoWay}">
+                                            <ComboBoxItem Content="50% (حجم ملف أصغر)" />
+                                            <ComboBoxItem Content="60% (متوازنة)" />
+                                            <ComboBoxItem Content="75% (دقة فائقة)" />
+                                        </ComboBox>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Section 3: Activity & Idle Tracking -->
+                        <Border Background="{StaticResource CardLightBrush}"
+                                BorderBrush="{StaticResource BorderSubtleBrush}"
+                                BorderThickness="1" CornerRadius="10" Padding="16,14" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="⏱️ تتبع الأنشطة وفترات الخمول" FontSize="15" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,10" />
+
+                                <CheckBox IsChecked="{Binding Settings.ActivityTrackingEnabled, Mode=TwoWay}" Margin="0,0,0,10">
+                                    <StackPanel Margin="6,0,0,0">
+                                        <TextBlock Text="تفعيل تتبع التطبيقات والنوافذ النشطة" FontWeight="SemiBold" FontSize="13" />
+                                        <TextBlock Text="تسجيل أسماء البرامج، عناوين النوافذ، وأوقات الاستخدام لتحليل الإنتاجية." FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </CheckBox>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="180" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="مدة إيقاف التسجيل بعد الخمول:" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <ComboBox Grid.Column="2" SelectedIndex="{Binding Settings.SelectedIdleMinutesIndex, Mode=TwoWay}">
+                                        <ComboBoxItem Content="دقيقة واحدة" />
+                                        <ComboBoxItem Content="دقيقتان" />
+                                        <ComboBoxItem Content="3 دقائق" />
+                                        <ComboBoxItem Content="5 دقائق (افتراضي)" />
+                                        <ComboBoxItem Content="10 دقائق" />
+                                        <ComboBoxItem Content="15 دقيقة" />
+                                        <ComboBoxItem Content="30 دقيقة" />
+                                    </ComboBox>
+                                    <TextBlock Grid.Column="3" Text="إذا لم يحدث إدخال خلال هذه المدة يتوقف الفيديو وتتوقف أحداث التطبيقات حتى عودة المستخدم."
+                                               FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Section 4: Data Retention & Quick Access -->
+                        <Border Background="{StaticResource CardLightBrush}"
+                                BorderBrush="{StaticResource BorderSubtleBrush}"
+                                BorderThickness="1" CornerRadius="10" Padding="16,14">
+                            <StackPanel>
+                                <TextBlock Text="💾 الاحتفاظ بالبيانات والوصول السريع للمجلدات" FontSize="15" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,10" />
+
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="200" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="فترة الاحتفاظ بالفيديو فقط:" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                    <ComboBox Grid.Column="2" SelectedIndex="{Binding Settings.SelectedRetentionDaysIndex, Mode=TwoWay}">
+                                        <ComboBoxItem Content="7 أيام (أسبوع)" />
+                                        <ComboBoxItem Content="14 يوماً (أسبوعان - افتراضي)" />
+                                        <ComboBoxItem Content="30 يوماً (شهر)" />
+                                        <ComboBoxItem Content="60 يوماً (شهران)" />
+                                    </ComboBox>
+                                    <TextBlock Grid.Column="3" Text="حصة المساحة قد تقصر مدة الاحتفاظ بالفيديو. سجل النشاط له سياسة مستقلة أدناه."
+                                               FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="10,0,0,0" />
+                                </Grid>
+
+                                <WrapPanel Margin="0,0,0,12">
+                                    <StackPanel Margin="0,0,16,0"><TextBlock Text="سجل النشاط (أيام)" /><TextBox Width="110" Text="{Binding Settings.ActivityRetentionDays, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" AutomationProperties.Name="مدة الاحتفاظ بسجل النشاط" /></StackPanel>
+                                    <StackPanel Margin="0,0,16,0"><TextBlock Text="التقارير (أيام)" /><TextBox Width="110" Text="{Binding Settings.ReportRetentionDays, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" AutomationProperties.Name="مدة الاحتفاظ بالتقارير" /></StackPanel>
+                                    <StackPanel><TextBlock Text="السجلات التقنية (أيام)" /><TextBox Width="110" Text="{Binding Settings.LogRetentionDays, UpdateSourceTrigger=PropertyChanged, ValidatesOnExceptions=True}" AutomationProperties.Name="مدة الاحتفاظ بالسجلات التقنية" /></StackPanel>
+                                </WrapPanel>
+                                <!-- Quick Folders Access -->
+                                <TextBlock Text="الوصول المباشر إلى مجلدات التخزين:" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                <WrapPanel>
+                                    <Button Content="📁 بيانات المستخدم" Style="{StaticResource ActionButtonStyle}" Command="{Binding Settings.OpenProgramDataFolderCommand}" Margin="0,0,8,6" />
+                                    <Button Content="🎥 مجلد التسجيلات" Style="{StaticResource ActionButtonStyle}" Command="{Binding Settings.OpenRecordingsFolderCommand}" Margin="0,0,8,6" />
+                                    <Button Content="📊 مجلد التقارير" Style="{StaticResource ActionButtonStyle}" Command="{Binding Settings.OpenReportsFolderCommand}" Margin="0,0,8,6" />
+                                    <Button Content="📝 سجلات النظام (Logs)" Style="{StaticResource ActionButtonStyle}" Command="{Binding Settings.OpenLogsFolderCommand}" Margin="0,0,8,6" />
+                                </WrapPanel>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Footer -->
+                <Grid Grid.Row="2" Margin="0,6,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Status Message -->
+                    <TextBlock Grid.Column="0" Text="{Binding Settings.SettingsStatusMessage}"
+                               FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource AccentBrush}"
+                               VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+
+                    <!-- Action Buttons -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal">
+                        <Button x:Name="SettingsCancelButton" Content="إلغاء" Style="{StaticResource ActionButtonStyle}" Command="{Binding CloseSettingsCommand}" Margin="0,0,10,0" Width="80" />
+                        <Button x:Name="SettingsSaveButton" Content="💾 حفظ وتطبيق الإعدادات" Style="{StaticResource AccentButtonStyle}" Command="{Binding Settings.SaveSettingsCommand}" Padding="16,8" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+
+    <!-- Full-screen host reuses the same player, preserving playback position. -->
+    <Grid x:Name="FullScreenOverlay"
+          Background="#000000"
+          Visibility="Collapsed"
+          Panel.ZIndex="2000" />
+</Grid>
 </Window>

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using ActivityMonitor.Viewer.Services;
 using ActivityMonitor.Viewer.ViewModels;
 using Xunit;
 
@@ -65,5 +66,48 @@ public class ViewerViewModelTests
         Assert.Equal("10:00", segment.DurationDisplay);
         Assert.Equal("15.00 MB", segment.FileSizeDisplay);
         Assert.False(segment.ExistsOnDisk);
+    }
+
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(1, 2)]
+    [InlineData(2, 5)]
+    [InlineData(3, 10)]
+    [InlineData(4, 15)]
+    public void SettingsViewModel_SegmentIndexMapsToDisplayedMinutes(int selectedIndex, int expectedMinutes)
+    {
+        var settings = new SettingsViewModel(new WindowsServiceManager());
+
+        settings.SelectedSegmentMinutesIndex = selectedIndex;
+
+        Assert.Equal(expectedMinutes, settings.SegmentMinutes);
+        Assert.Equal(selectedIndex, settings.SelectedSegmentMinutesIndex);
+    }
+
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(1, 2)]
+    [InlineData(2, 3)]
+    [InlineData(3, 5)]
+    [InlineData(4, 10)]
+    [InlineData(5, 15)]
+    [InlineData(6, 30)]
+    public void SettingsViewModel_IdleIndexControlsRecordingStopDelay(int selectedIndex, int expectedMinutes)
+    {
+        var settings = new SettingsViewModel(new WindowsServiceManager());
+
+        settings.SelectedIdleMinutesIndex = selectedIndex;
+
+        Assert.Equal(expectedMinutes, settings.IdleThresholdMinutes);
+        Assert.Equal(selectedIndex, settings.SelectedIdleMinutesIndex);
+    }
+
+    [Fact]
+    public void SettingsViewModel_ActivityDrivenRecordingIsEnabledByDefault()
+    {
+        var settings = new SettingsViewModel(new WindowsServiceManager());
+
+        Assert.True(settings.RecordOnlyWhenUserActive);
+        Assert.Equal(5, settings.IdleThresholdMinutes);
     }
 }
