@@ -7,16 +7,40 @@ using System.Threading.Tasks;
 using ActivityMonitor.Core.Entities;
 using ActivityMonitor.Core.Interfaces;
 using ActivityMonitor.Core.Models;
+using ActivityMonitor.Core.Options;
 using Microsoft.Extensions.Logging;
 
 namespace ActivityMonitor.Infrastructure.Services;
 
+/// <summary>
+/// خدمة مسؤولة عن مطابقة وتحديد موقع مقاطع الفيديو المرتبطة بأحداث الأنشطة،
+/// وحساب نقطة الإزاحة الزمنية (Offset) داخل الفيديو بدقة، وإعادة ربط الأنشطة غير المرتبطة.
+/// </summary>
 public class RecordingLocatorService : IRecordingLocatorService
 {
+    /// <summary>
+    /// مستودع مقاطع التسجيل.
+    /// </summary>
     private readonly IRecordingRepository _recordingRepository;
-    private readonly IActivityRepository _activityRepository;
-    private readonly ILogger<RecordingLocatorService> _logger;
 
+    /// <summary>
+    /// مستودع أحداث الأنشطة.
+    /// </summary>
+    private readonly IActivityRepository _activityRepository;
+
+    /// <summary>
+    /// مسجل السجلات.
+    /// </summary>
+    private readonly ILogger<RecordingLocatorService> _logger;
+    private readonly SemaphoreSlim _linkGate = new(1, 1);
+    private long _linkCursor;
+
+    /// <summary>
+    /// منشئ الخدمة.
+    /// </summary>
+    /// <param name="recordingRepository">مستودع مقاطع التسجيل.</param>
+    /// <param name="activityRepository">مستودع أحداث الأنشطة.</param>
+    /// <param name="logger">مسجل العمليات.</param>
     public RecordingLocatorService(
         IRecordingRepository recordingRepository,
         IActivityRepository activityRepository,
@@ -27,101 +51,88 @@ public class RecordingLocatorService : IRecordingLocatorService
         _logger = logger;
     }
 
+    /// <summary>
+    /// العثور على مقاطع الفيديو المتزامنة مع حدث نشاط معين وحساب نقطة البداية والمدة داخل الفيديو.
+    /// </summary>
+    /// <param name="activityEvent">حدث النشاط المستهدف.</param>
+    /// <param name="ct">رمز الإلغاء.</param>
+    /// <returns>قائمة بنتائج التحديد تتضمن مسارات الملفات ونقاط الإزاحة.</returns>
     public async Task<List<RecordingLocationResult>> LocateAsync(ActivityEvent activityEvent, CancellationToken ct = default)
     {
-        var startUtc = activityEvent.StartedAtUtc;
-        var endUtc = activityEvent.EndedAtUtc ?? startUtc.AddSeconds(Math.Max(1, activityEvent.DurationSeconds));
-
-        var segments = await _recordingRepository.GetSegmentsCoveringTimeRangeAsync(startUtc, endUtc, activityEvent.MachineId, ct);
-
-        var results = new List<RecordingLocationResult>();
-
-        foreach (var segment in segments)
-        {
-            var segmentEnd = segment.EndedAtUtc ?? (segment.StartedAtUtc.AddSeconds(Math.Max(1, segment.DurationSeconds)));
-
-            // Calculate overlap between activity and segment
-            var overlapStart = startUtc > segment.StartedAtUtc ? startUtc : segment.StartedAtUtc;
-            var overlapEnd = endUtc < segmentEnd ? endUtc : segmentEnd;
-
-            if (overlapEnd >= overlapStart)
-            {
-                var offset = overlapStart - segment.StartedAtUtc;
-                if (offset < TimeSpan.Zero) offset = TimeSpan.Zero;
-
-                var duration = overlapEnd - overlapStart;
-
-                results.Add(new RecordingLocationResult
-                {
-                    ActivityEventId = activityEvent.Id,
-                    RecordingSegmentId = segment.Id,
-                    FilePath = segment.FilePath,
-                    FileName = segment.FileName,
-                    Offset = offset,
-                    Duration = duration,
-                    FileExists = File.Exists(segment.FilePath)
-                });
-            }
-        }
-
+        var end = activityEvent.EndedAtUtc ?? activityEvent.StartedAtUtc.AddSeconds(Math.Max(1, activityEvent.DurationSeconds));
+        if (end <= activityEvent.StartedAtUtc) end = activityEvent.StartedAtUtc.AddTicks(1);
+        var segments = await _recordingRepository.GetSegmentsCoveringTimeRangeAsync(
+            activityEvent.StartedAtUtc, end, activityEvent.MachineId, ct, activityEvent.SessionId);
+        var results = RecordingTimeline.Resolve(activityEvent, segments, DateTime.UtcNow);
+        foreach (var result in results) result.FileExists = IsSafeExistingRecording(result.FilePath);
         return results;
     }
 
-    public async Task<List<RecordingLocationResult>> LocateByTimestampAsync(DateTime timestampUtc, TimeSpan? duration = null, string? machineId = null, CancellationToken ct = default)
+    /// <summary>
+    /// العثور على مقاطع الفيديو المتزامنة مع طابع زمني محدد وفترة معينة دون الحاجة لكائن نشاط.
+    /// </summary>
+    /// <param name="timestampUtc">الطابع الزمني بالتوقيت العالمي.</param>
+    /// <param name="duration">المدة الزمنية المطلوب البحث فيها (اختياري).</param>
+    /// <param name="machineId">معرّف الجهاز (اختياري).</param>
+    /// <param name="ct">رمز الإلغاء.</param>
+    /// <returns>قائمة بنتائج مواقع التسجيل.</returns>
+    public async Task<List<RecordingLocationResult>> LocateByTimestampAsync(DateTime timestampUtc, TimeSpan? duration = null, string? machineId = null, CancellationToken ct = default, int? sessionId = null)
     {
-        var dur = duration ?? TimeSpan.FromSeconds(1);
-        var endUtc = timestampUtc.Add(dur);
-
-        var segments = await _recordingRepository.GetSegmentsCoveringTimeRangeAsync(timestampUtc, endUtc, machineId, ct);
+        var length = duration ?? TimeSpan.FromSeconds(1);
+        if (length <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(duration));
+        var segments = await _recordingRepository.GetSegmentsCoveringTimeRangeAsync(timestampUtc, timestampUtc.Add(length), machineId, ct, sessionId);
         var results = new List<RecordingLocationResult>();
-
-        foreach (var segment in segments)
+        foreach (var group in segments.GroupBy(s => (s.MachineId, s.SessionId)))
         {
-            var segmentEnd = segment.EndedAtUtc ?? (segment.StartedAtUtc.AddSeconds(Math.Max(1, segment.DurationSeconds)));
-
-            var overlapStart = timestampUtc > segment.StartedAtUtc ? timestampUtc : segment.StartedAtUtc;
-            var overlapEnd = endUtc < segmentEnd ? endUtc : segmentEnd;
-
-            if (overlapEnd >= overlapStart)
-            {
-                var offset = overlapStart - segment.StartedAtUtc;
-                if (offset < TimeSpan.Zero) offset = TimeSpan.Zero;
-
-                results.Add(new RecordingLocationResult
-                {
-                    ActivityEventId = 0,
-                    RecordingSegmentId = segment.Id,
-                    FilePath = segment.FilePath,
-                    FileName = segment.FileName,
-                    Offset = offset,
-                    Duration = overlapEnd - overlapStart,
-                    FileExists = File.Exists(segment.FilePath)
-                });
-            }
+            var activity = new ActivityEvent { MachineId = group.Key.MachineId, SessionId = group.Key.SessionId,
+                StartedAtUtc = timestampUtc, EndedAtUtc = timestampUtc.Add(length) };
+            results.AddRange(RecordingTimeline.Resolve(activity, group, DateTime.UtcNow));
         }
-
-        return results;
+        foreach (var result in results) result.FileExists = IsSafeExistingRecording(result.FilePath);
+        return results.OrderBy(r => r.Offset).ToList();
     }
 
+    /// <summary>
+    /// فحص الأنشطة التي تفتقر لمعرّف مقطع الفيديو ومطابقتها بمقاطع الفيديو وتحديث السجلات في قاعدة البيانات.
+    /// </summary>
+    /// <param name="beforeUtc">الحد الزمني الأعلى للأنشطة المعلقة.</param>
+    /// <param name="ct">رمز الإلغاء.</param>
+    /// <returns>عدد الأنشطة التي تم ربطها بنجاح.</returns>
     public async Task<int> LinkUnlinkedActivitiesAsync(DateTime beforeUtc, CancellationToken ct = default)
     {
-        var unlinked = await _activityRepository.GetUnlinkedActivitiesAsync(beforeUtc, ct);
-        if (unlinked.Count == 0) return 0;
-
-        int linkedCount = 0;
-        foreach (var activity in unlinked)
+        await _linkGate.WaitAsync(ct);
+        try
         {
-            var results = await LocateAsync(activity, ct);
-            if (results.Count > 0)
+            var linked = 0;
+            for (var page = 0; page < 20; page++)
             {
-                // Link to the first covering segment
-                activity.RecordingSegmentId = results[0].RecordingSegmentId;
-                await _activityRepository.UpdateAsync(activity, ct);
-                linkedCount++;
+                var batch = await _activityRepository.GetUnlinkedActivitiesAsync(beforeUtc, ct, _linkCursor);
+                if (batch.Count == 0) { _linkCursor = 0; break; }
+                foreach (var activity in batch)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var locations = await LocateAsync(activity, ct);
+                    if (locations.Count > 0 && await _activityRepository.SetRecordingSegmentIfMissingAsync(activity.Id, locations[0].RecordingSegmentId, ct)) linked++;
+                }
+                var next = batch.Max(a => a.Id);
+                if (next <= _linkCursor || batch.Count < 500) { _linkCursor = 0; break; }
+                _linkCursor = next;
             }
+            return linked;
         }
-
-        _logger.LogInformation("Successfully linked {Count} activities to video recording segments", linkedCount);
-        return linkedCount;
+        finally { _linkGate.Release(); }
     }
+
+    /// <summary>
+    /// التحقق من أن مسار ملف التسجيل يقع بأمان داخل مجلد التسجيلات المسموح به وأنه موجود فعلياً على القرص.
+    /// </summary>
+    /// <param name="candidatePath">المسار المرشح للفحص.</param>
+    /// <returns>القيمة true إذا كان المسار آمناً وموجوداً؛ وإلا false.</returns>
+    private static bool IsSafeExistingRecording(string candidatePath) =>
+        StoragePathGuard.TryResolvePathWithinRoot(
+            candidatePath,
+            ActivityMonitorPaths.RecordingsDirectory,
+            out var safePath,
+            out _) &&
+        File.Exists(safePath);
 }

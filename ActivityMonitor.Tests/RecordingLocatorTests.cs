@@ -24,7 +24,7 @@ public class RecordingLocatorTests
             return Task.FromResult(segment);
         }
 
-        public Task<List<RecordingSegment>> GetSegmentsCoveringTimeRangeAsync(DateTime startUtc, DateTime endUtc, string? machineId = null, CancellationToken ct = default)
+        public Task<List<RecordingSegment>> GetSegmentsCoveringTimeRangeAsync(DateTime startUtc, DateTime endUtc, string? machineId = null, CancellationToken ct = default, int? sessionId = null)
         {
             var matches = new List<RecordingSegment>();
             foreach (var s in Segments)
@@ -40,7 +40,7 @@ public class RecordingLocatorTests
 
         public Task UpdateAsync(RecordingSegment segment, CancellationToken ct = default) => Task.CompletedTask;
         public Task<RecordingSegment?> GetByIdAsync(long id, CancellationToken ct = default) => Task.FromResult(Segments.Find(s => s.Id == id));
-        public Task<RecordingSegment?> GetActiveSegmentAsync(string machineId, CancellationToken ct = default) => Task.FromResult<RecordingSegment?>(null);
+        public Task<RecordingSegment?> GetActiveSegmentAsync(string machineId, CancellationToken ct = default, int? sessionId = null) => Task.FromResult<RecordingSegment?>(null);
         public Task<List<RecordingSegment>> GetByDateRangeAsync(DateTime startUtc, DateTime endUtc, string? machineId = null, CancellationToken ct = default) => Task.FromResult(Segments);
         public Task<List<RecordingSegment>> GetSegmentsOlderThanAsync(DateTime cutoffUtc, CancellationToken ct = default) => Task.FromResult(new List<RecordingSegment>());
         public Task<List<RecordingSegment>> GetAllCompletedSegmentsAsync(CancellationToken ct = default) => Task.FromResult(Segments);
@@ -52,9 +52,10 @@ public class RecordingLocatorTests
         public Task<ActivityEvent> AddAsync(ActivityEvent activityEvent, CancellationToken ct = default) => Task.FromResult(activityEvent);
         public Task AddRangeAsync(IEnumerable<ActivityEvent> activityEvents, CancellationToken ct = default) => Task.CompletedTask;
         public Task UpdateAsync(ActivityEvent activityEvent, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<bool> SetRecordingSegmentIfMissingAsync(long activityEventId, long recordingSegmentId, CancellationToken ct = default) => Task.FromResult(true);
         public Task<ActivityEvent?> GetByIdAsync(long id, CancellationToken ct = default) => Task.FromResult<ActivityEvent?>(null);
         public Task<List<ActivityEvent>> GetByDateRangeAsync(DateTime startUtc, DateTime endUtc, string? machineId = null, CancellationToken ct = default) => Task.FromResult(new List<ActivityEvent>());
-        public Task<List<ActivityEvent>> GetUnlinkedActivitiesAsync(DateTime beforeUtc, CancellationToken ct = default) => Task.FromResult(new List<ActivityEvent>());
+        public Task<List<ActivityEvent>> GetUnlinkedActivitiesAsync(DateTime beforeUtc, CancellationToken ct = default, long afterId = 0) => Task.FromResult(new List<ActivityEvent>());
         public Task<Core.Models.DailyActivitySummary> GetDailySummaryAsync(DateTime dateUtc, string? machineId = null, CancellationToken ct = default) => Task.FromResult(new Core.Models.DailyActivitySummary());
         public Task<List<Core.Models.ApplicationUsageSummary>> GetTopApplicationsAsync(DateTime dateUtc, string? machineId = null, CancellationToken ct = default) => Task.FromResult(new List<Core.Models.ApplicationUsageSummary>());
         public Task<int> PurgeOlderThanAsync(DateTime cutoffUtc, CancellationToken ct = default) => Task.FromResult(0);
