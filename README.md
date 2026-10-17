@@ -1,8 +1,49 @@
 # ActivityMonitor
 
+## تحديث الاعتمادية والصلاحيات — 15 أكتوبر 2026
+
+- **بيانات المستخدم الجديدة:** `%LOCALAPPDATA%\ActivityMonitor`، بقاعدة وتسجيلات وتقارير وإعدادات خاصة بكل حساب Windows. مالك الحساب والمسؤول وSYSTEM فقط يملكون حق الوصول إلى المخزن. هذا ليس سجلًا غير قابل للعبث من مالكه.
+- **الأرشيف السابق:** يبقى في `%ProgramData%\ActivityMonitor`. يقيّد المثبت المحدث صلاحياته للمسؤول وSYSTEM؛ لم تُطبّق هذه الصلاحيات على أي تثبيت قائم بمجرد تعديل المصدر. لعرضه شغّل Viewer كمسؤول مع `--legacy-archive`.
+- **الصيانة:** Agent يشغّل عامل صيانة خلفيًا لمخزن المستخدم، حتى عند تعطيل سجل التطبيقات. Windows Service يصون الأرشيف القديم؛ توقفه لا يعني فشل مخزن المستخدم.
+- **الإعدادات:** افتراضات المسؤول في `%ProgramData%\ActivityMonitor\appsettings.json`، وتجاوزات المستخدم في `%LOCALAPPDATA%\ActivityMonitor\appsettings.json`. لا يطلب حفظ الإعدادات المحلية رفع الصلاحيات؛ تعديل بدء خدمة Windows يتطلبه عند تغيير القيمة فقط.
+- **الاحتفاظ:** مدد مستقلة للفيديو والنشاط والتقارير والسجل. حصة المساحة قد تختصر الاحتفاظ الفعلي بالفيديو.
+- **الربط والاسترداد:** مطابقة الجهاز والجلسة والمستخدم، heartbeat وملكية للعملية، وفحص فيديو Media Foundation؛ الحالة `Recovered` تعني استرداد ملف تم التحقق من تدفق الفيديو ومدته.
+- **بدء التشغيل:** تسجيل Run عادي دون Highest، مع `--autostart` الذي يحترم تفضيل كل مستخدم. المثبت يزيل المهمة القديمة، ولا يشغّل Agent فورًا افتراضيًا. يمكن تشغيله من العارض أو عند الدخول التالي.
+- **الترقية:** `user_version=2` مع نسخة SQLite متسقة قبل تغيير المخطط القديم. الحزم قابلة للتحقق عبر SHA-256؛ هذه ليست توقيعًا من ناشر موثوق.
+
+لعمل نسخة متسقة تشمل WAL دون تشغيل التقاط الشاشة:
+
+```powershell
+.\ActivityMonitor.Agent.exe --backup-db "D:\Backups\activity-2026-10-15.db"
+```
+
+الوجهة يجب أن تكون ملفًا جديدًا. اختبر الاستعادة في مكان منفصل. للاستعادة إلى المخزن الأصلي: أوقف جميع Agents للحساب، احتفظ بنسخة من مجلد Data الحالي بما فيه WAL/SHM، ثم استبدل مجلد Data كاملًا بملف النسخة باسم `activity.db` دون ملفات WAL/SHM قديمة، وأعد التشغيل. لا تستبدل ملف قاعدة مفتوحة.
+
+بناء وفحص قابلان لإعادة الإنتاج:
+
+```powershell
+dotnet restore ActivityMonitor.slnx --locked-mode
+dotnet build ActivityMonitor.slnx -c Release --no-restore
+dotnet test ActivityMonitor.slnx -c Release --no-build
+```
+
+نشر حزمة Windows x64 من المصدر:
+
+```powershell
+.\deploy\Publish.ps1
+```
+
+الافتراضي SelfContained=true. تم اختبار مسار النشر أيضًا مع SelfContained=false، والذي يحتاج .NET 10 وWindows Desktop Runtime 10 على الجهاز.
+
+لمراجعة مخزن مستخدم آخر، يستطيع المسؤول تشغيل Viewer مع `--user-store "C:\Users\OtherUser\AppData\Local\ActivityMonitor"`. وضع مراجعة الأرشيف يعطّل التحكم في Agent والإعدادات. الصيانة الخاصة بالمستخدم تعمل أثناء تشغيل Agent؛ بيانات الحساب الذي لا يشغّل Agent تُصان عند تشغيله التالي، وليس بواسطة خدمة الأرشيف القديم.
+
+التفاصيل: [سجل الإصلاحات والتحقق](docs/FIXES_2026-10-15.md). التحليل السابق محفوظ كمرجع تاريخي ولا يصف حالة كل مشكلة بعد الإصلاح.
+
+
 نظام متكامل لمراقبة النشاط وتسجيل الشاشة لنظام التشغيل Windows مبني باستخدام **C#** و **.NET 10** بنمط Modular Clean Architecture.
 
-يعمل النظام في صمت تام وبأداء فائق واستهلاك منخفض للموارد ومحليًا بالكامل داخل جهاز المستخدم دون الاعتماد على أي خدمات سحابية أو طرف ثالث خارجي.
+يعمل النظام محليًا على جهاز المستخدم باستخدام مكتبات .NET وWindows، دون خدمة سحابية لتخزين النشاط.
+توجد اختصارات واضحة للعارض ومؤشرات لحالة Agent والتسجيل. الأداء طويل المدة يحتاج قياسًا على الأجهزة المستهدفة.
 
 ---
 
@@ -42,6 +83,7 @@ ActivityMonitor/
 - **مراقبة النوافذ النشطة**: يجمع بين `SetWinEventHook` للاستجابة اللحظية الفورية عند تغيير النافذة، وفحص خفيف مجدول (Polling) لتحديث العناوين وحالة الخمول.
 - **دمج الأحداث الذكي (Activity Merging)**: عند استمرار العمل على نفس التطبيق والسياق لا يتم إغراق قاعدة البيانات بآلاف السجلات، بل يتم دمج المدة الزمنية في حدث منطقي واحد.
 - **اكتشاف الخمول (Idle Detection)**: باستخدام `GetLastInputInfo` (افتراضيًا 5 دقائق قابلة للتعديل).
+- **تسجيل مرتبط بالنشاط**: يبدأ الفيديو عند وجود إدخال من الماوس أو لوحة المفاتيح، ويتوقف بعد مهلة الخمول المحددة. أثناء توقف الفيديو لا تُنشأ أحداث تطبيقات جديدة، ويُستأنف الاثنان معًا عند عودة المستخدم.
 - **أحداث جلسة Windows**: التقاط القفل وإلغاء القفل وتسجيل الدخول والخروج والـ Sleep / Resume وShutdown عبر `SystemEvents`.
 - **تسجيل الشاشة**: باستخدام `ScreenRecorderLib` عبر Windows Media Foundation وDesktop Duplication مع تسريع العتاد (Hardware Acceleration) وتنسيق MP4 بدون الحاجة لـ FFmpeg خارجي.
 - **تقسيم الفيديو (Segmentation)**: تقطيع دوري آمن (كل 10 دقائق افتراضيًا) لتجنب إنتاج ملفات ضخمة وحماية التسجيلات من الانهيار.
@@ -59,10 +101,10 @@ ActivityMonitor/
   - تم تصميمها بأمان تام (لا تحاول التفاعل مع الشاشة أو التسجيل من Session 0).
   - تتولى مهام الصيانة الدورية وتطبيق سياسة الأرشفة (Retention Policy).
   - فحص سعة القرص وحذف المقاطع الأقدم عند امتلاء المساحة المحددة وتحديث حالة المقاطع دون المساس بسجلات الأحداث `ActivityEvents`.
-  - الجدولة التلقائية لإصدار التقارير اليومية بصيغ Excel و CSV و TXT (افتراضيًا عند الساعة 23:55).
+  - الجدولة التلقائية لإصدار تقارير اليوم المكتمل السابق بصيغ Excel وCSV وTXT (افتراضيًا عند 00:05)، مع استكمال آخر 7 أيام مفقودة.
 
 ### 6. ActivityMonitor.Viewer (Local Player & Viewer GUI)
-- **واجهة مراجعة وتصفح محلية حديثة وخفيفة (WPF / Fluent Dark Theme)**:
+- **واجهة مراجعة وتصفح محلية حديثة وخفيفة (WPF / Arabic RTL Light Theme)**:
   - **تصفح الجدول الزمني لليوم**: عرض الأحداث مع المدة، التطبيق، العنوان، وسياق العمل.
   - **مشغل فيديو متزامن داخل نفس النافذة**: مشغل مدمج يسمح بالقفز التلقائي اللحظي (1-Click Jump) إلى الـ Offset الزمني للفيديو بمجرد النقر على زر "▶ Play" أو صف النشاط.
   - **التحكم بالخدمة والـ Agent**: مؤشر حالة فوري وزر لتشغيل وإيقاف خدمة Windows Service (`ActivityMonitorService`) وتشغيل/إيقاف العميل (`ActivityMonitor.Agent`).
@@ -74,14 +116,16 @@ ActivityMonitor/
 
 ## 📁 Locations & Paths
 
-تلتزم جميع مكونات النظام بالمسار الرسمي الموحد `%ProgramData%\ActivityMonitor` طبقًا للمواصفات:
+يستخدم Agent وViewer مخزنًا خاصًا بكل مستخدم داخل `%LOCALAPPDATA%\ActivityMonitor`.
+خدمة Windows تصون الأرشيف المشترك القديم داخل `%ProgramData%\ActivityMonitor` بصلاحيات المسؤول.
+لا يُنقل الأرشيف المختلط إلى حساب مستخدم تلقائيًا.
 
 | المكون | المسار الافتراضي |
 | :--- | :--- |
-| **قاعدة البيانات** | `%ProgramData%\ActivityMonitor\Data\activity.db` |
-| **مقاطع الفيديو** | `%ProgramData%\ActivityMonitor\Recordings\{MachineId}\{YYYY}\{MM}\{DD}\{HH}\{YYYY-MM-DD_HH-mm-ss}.mp4` |
-| **التقارير اليومية** | `%ProgramData%\ActivityMonitor\Reports\{MachineId}\{YYYY}\{MM}\{YYYY-MM-DD}.xlsx` |
-| **السجلات التقنية** | `%ProgramData%\ActivityMonitor\Logs\agent-{YYYY-MM-dd}.log` و `service-{YYYY-MM-dd}.log` |
+| **قاعدة البيانات** | `%LOCALAPPDATA%\ActivityMonitor\Data\activity.db` |
+| **مقاطع الفيديو** | `%LOCALAPPDATA%\ActivityMonitor\Recordings\{MachineId}\{YYYY}\{MM}\{DD}\{HH}\{YYYY-MM-DD_HH-mm-ss}.mp4` |
+| **التقارير اليومية** | `%LOCALAPPDATA%\ActivityMonitor\Reports\{MachineId}\{YYYY}\{MM}\{YYYY-MM-DD}.xlsx` |
+| **السجلات التقنية** | `%LOCALAPPDATA%\ActivityMonitor\Logs\agent-{YYYY-MM-dd}.log` و `service-{YYYY-MM-dd}.log` |
 
 ---
 
@@ -106,12 +150,13 @@ ActivityMonitor/
 {
   "ActivityTracking": {
     "Enabled": true,
-    "PollingIntervalMs": 500,
+    "PollingIntervalMs": 2000,
     "IdleThresholdMinutes": 5,
     "WindowDebounceMs": 300
   },
   "Recording": {
     "Enabled": true,
+    "RecordOnlyWhenUserActive": true,
     "SegmentMinutes": 10,
     "FrameRate": 15,
     "VideoBitrateKbps": 1200,
@@ -125,7 +170,8 @@ ActivityMonitor/
     "CsvEnabled": true,
     "TxtEnabled": true,
     "DailyReportEnabled": true,
-    "DailyReportScheduleTime": "23:55:00"
+    "DailyReportScheduleTime": "00:05:00",
+    "BackfillDays": 7
   },
   "Storage": {
     "RecordingRetentionDays": 14,
@@ -193,7 +239,7 @@ powershell -ExecutionPolicy Bypass -File .\deploy\Publish.ps1
 powershell -ExecutionPolicy Bypass -File .\deploy\Install.ps1
 ```
 يقوم السكربت بالمهام التالية تلقائيًا:
-- إنشاء المجلدات في `C:\Program Files\ActivityMonitor` ومجلدات `%ProgramData%\ActivityMonitor`.
+- إنشاء المجلدات في `C:\Program Files\ActivityMonitor` ومجلدات `%LOCALAPPDATA%\ActivityMonitor`.
 - ضبط صلاحيات الأمان (NTFS ACLs) لتمكين كل من خدمة النظام والمستخدم من الوصول لقاعدة البيانات والتسجيلات.
 - تثبيت Windows Service باسم `ActivityMonitor.Service` وضبطها للعمل تلقائيًا عند تشغيل الجهاز (`Automatic`).
 - إنشاء Scheduled Task لتشغيل `ActivityMonitor.Agent.exe` في الوضع الصامت (`--silent`) عند تسجيل دخول أي مستخدم.
@@ -226,6 +272,6 @@ powershell -ExecutionPolicy Bypass -File .\deploy\Uninstall.ps1 -PurgeData
 1. **Session 0 Separation**:
    خدمة Windows Service تعمل داخل Session 0 الآمنة ولا يمكنها تسجيل شاشة المستخدم أو قراءة النوافذ التفاعلية؛ لذا تم إسناد التسجيل ومراقبة النوافذ بالكامل لمشروع الـ Agent الذي يعمل داخل جلسة المستخدم، بينما تقتصر الخدمة على مهام الصيانة والأرشفة وجدولة التقارير.
 2. **الخصوصية والشفافية**:
-   تم الالتزام بعدم تسجيل أي ضغطات للمفاتيح (Keystrokes)، أو كلمات المرور، أو محتويات الحافظة (Clipboard)، أو تسجيل الصوت/الميكروفون أو الكاميرا.
+   لا يسجل النظام ضغطات المفاتيح أو كلمات المرور أو الحافظة أو الكاميرا. إعدادات Agent في هذه الحزمة تفعّل الميكروفون فقط، ويمكن تعطيله من الإعدادات. صوت النظام معطّل. يتطلب تسجيل الصوت علم المستخدم وموافقته، وتبقى مؤشرات استخدام الميكروفون الخاصة بـWindows ظاهرة. يعمل Agent في الخلفية دون نوافذ أو تنبيهات إضافية، ولا تفتح واجهة الإعدادات جلسة الميكروفون ما لم يُفعّل الخيار. إعدادات المستخدم المحفوظة تتقدم على إعدادات الحزمة، والخيارات البرمجية الاحتياطية تبقي الصوت معطّلًا عند غياب الإعدادات.
 3. **صلاحيات النوافذ المرتفعة (Elevated Windows)**:
    تم استخدام `QueryFullProcessImageName` للتعامل مع البرامج التي تعمل بصلاحيات Administrator حتى يتم استخراج مساراتها التنفيذية دون التعرض لخطأ `Access Denied`.
