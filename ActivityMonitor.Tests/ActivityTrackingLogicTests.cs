@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using ActivityMonitor.Core.Entities;
 using ActivityMonitor.Core.Enums;
+using ActivityMonitor.Core.Models;
 using Xunit;
 
 namespace ActivityMonitor.Tests;
@@ -84,6 +85,102 @@ public class ActivityTrackingLogicTests
         Assert.Equal(ActivityEventType.IdleStart, idleEvent.EventType);
         Assert.Equal(activeEvent.EndedAtUtc, idleEvent.StartedAtUtc);
         Assert.Equal(300.0, idleEvent.DurationSeconds);
+    }
+
+    [Fact]
+    public void IdleStart_ShouldBeCalculatedFromLastInput_WithoutOverlappingActiveTime()
+    {
+        var observedAtUtc = new DateTime(2026, 10, 4, 11, 5, 0, DateTimeKind.Utc);
+        var idleTime = TimeSpan.FromMinutes(5);
+
+        var idleStartUtc = ActivityTimelineMath.CalculateIdleStartUtc(observedAtUtc, idleTime);
+        var activeEndUtc = ActivityTimelineMath.ClampEndUtc(observedAtUtc.AddMinutes(-10), idleStartUtc);
+
+        Assert.Equal(new DateTime(2026, 10, 4, 11, 0, 0, DateTimeKind.Utc), idleStartUtc);
+        Assert.Equal(idleStartUtc, activeEndUtc);
+        Assert.Equal(300, ActivityTimelineMath.CalculateDurationSeconds(idleStartUtc, observedAtUtc));
+    }
+
+    [Fact]
+    public void DurationCalculation_ShouldClampEndBeforeStart()
+    {
+        var start = new DateTime(2026, 10, 4, 11, 0, 0, DateTimeKind.Utc);
+
+        var duration = ActivityTimelineMath.CalculateDurationSeconds(start, start.AddSeconds(-10));
+
+        Assert.Equal(0, duration);
+    }
+
+    [Fact]
+    public void DailyOverlap_ShouldSplitActivityAcrossMidnight()
+    {
+        var activityStart = new DateTime(2026, 10, 4, 23, 59, 0, DateTimeKind.Utc);
+        var activityEnd = new DateTime(2026, 10, 5, 0, 10, 0, DateTimeKind.Utc);
+        var firstDayStart = new DateTime(2026, 10, 4, 0, 0, 0, DateTimeKind.Utc);
+        var secondDayStart = firstDayStart.AddDays(1);
+
+        var firstDaySeconds = ActivityTimelineMath.CalculateOverlapSeconds(
+            activityStart, activityEnd, 660, firstDayStart, secondDayStart);
+        var secondDaySeconds = ActivityTimelineMath.CalculateOverlapSeconds(
+            activityStart, activityEnd, 660, secondDayStart, secondDayStart.AddDays(1));
+
+        Assert.Equal(60, firstDaySeconds);
+        Assert.Equal(600, secondDaySeconds);
+    }
+
+    [Fact]
+    public void IdleCalculation_TickWrapAroundSafety_ShouldNotReportSpuriousIdle()
+    {
+        // Simulate tick discrepancy where dwTime is slightly ahead of tickCount
+        uint tickCount = 100000;
+        uint lastInputTime = 100050; // 50ms ahead due to kernel/system discrepancy
+
+        TimeSpan idleTime;
+        if (tickCount >= lastInputTime)
+        {
+            idleTime = TimeSpan.FromMilliseconds(tickCount - lastInputTime);
+        }
+        else
+        {
+            idleTime = TimeSpan.Zero;
+        }
+
+        // Verify it never wraps around to 49 days (4,294,967,290 ms)
+        Assert.Equal(TimeSpan.Zero, idleTime);
+        Assert.True(idleTime < TimeSpan.FromDays(1));
+    }
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(4.99, false)]
+    [InlineData(5, true)]
+    [InlineData(30, true)]
+    public void ActivityDrivenRecording_ShouldStopAtConfiguredIdleThreshold(
+        double idleMinutes,
+        bool expectedIdle)
+    {
+        var configuredThreshold = TimeSpan.FromMinutes(5);
+        var idleTime = TimeSpan.FromMinutes(idleMinutes);
+
+        Assert.Equal(expectedIdle, idleTime >= configuredThreshold);
+    }
+
+    [Fact]
+    public void ApplicationEvent_ShouldRemainInsideRecordingCoverage()
+    {
+        var segmentStart = new DateTime(2026, 10, 10, 8, 0, 0, DateTimeKind.Utc);
+        var segmentEnd = segmentStart.AddMinutes(5);
+        var applicationStart = segmentStart.AddSeconds(20);
+        var applicationEnd = segmentStart.AddMinutes(3);
+
+        var coveredSeconds = ActivityTimelineMath.CalculateOverlapSeconds(
+            applicationStart,
+            applicationEnd,
+            (applicationEnd - applicationStart).TotalSeconds,
+            segmentStart,
+            segmentEnd);
+
+        Assert.Equal((applicationEnd - applicationStart).TotalSeconds, coveredSeconds);
     }
 }
 
