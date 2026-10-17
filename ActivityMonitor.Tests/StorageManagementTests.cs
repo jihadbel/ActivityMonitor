@@ -14,6 +14,7 @@ using Xunit;
 
 namespace ActivityMonitor.Tests;
 
+[Collection(ActivityMonitorPathsCollection.Name)]
 public class StorageManagementTests
 {
     private class InMemoryRecordingRepository : IRecordingRepository
@@ -28,7 +29,7 @@ public class StorageManagementTests
 
         public Task UpdateAsync(RecordingSegment segment, CancellationToken ct = default) => Task.CompletedTask;
         public Task<RecordingSegment?> GetByIdAsync(long id, CancellationToken ct = default) => Task.FromResult(Segments.Find(s => s.Id == id));
-        public Task<RecordingSegment?> GetActiveSegmentAsync(string machineId, CancellationToken ct = default) => Task.FromResult<RecordingSegment?>(null);
+        public Task<RecordingSegment?> GetActiveSegmentAsync(string machineId, CancellationToken ct = default, int? sessionId = null) => Task.FromResult<RecordingSegment?>(null);
         public Task<List<RecordingSegment>> GetByDateRangeAsync(DateTime startUtc, DateTime endUtc, string? machineId = null, CancellationToken ct = default) => Task.FromResult(Segments);
 
         public Task<List<RecordingSegment>> GetSegmentsOlderThanAsync(DateTime cutoffUtc, CancellationToken ct = default)
@@ -41,7 +42,7 @@ public class StorageManagementTests
             return Task.FromResult(Segments.FindAll(s => s.Status == RecordingStatus.Completed));
         }
 
-        public Task<List<RecordingSegment>> GetSegmentsCoveringTimeRangeAsync(DateTime startUtc, DateTime endUtc, string? machineId = null, CancellationToken ct = default) => Task.FromResult(Segments);
+        public Task<List<RecordingSegment>> GetSegmentsCoveringTimeRangeAsync(DateTime startUtc, DateTime endUtc, string? machineId = null, CancellationToken ct = default, int? sessionId = null) => Task.FromResult(Segments);
         public Task<int> MarkAsDeletedAsync(long id, CancellationToken ct = default) => Task.FromResult(1);
     }
 
@@ -62,9 +63,10 @@ public class StorageManagementTests
         }
 
         public Task UpdateAsync(ActivityEvent activityEvent, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<bool> SetRecordingSegmentIfMissingAsync(long activityEventId, long recordingSegmentId, CancellationToken ct = default) => Task.FromResult(true);
         public Task<ActivityEvent?> GetByIdAsync(long id, CancellationToken ct = default) => Task.FromResult(Events.Find(e => e.Id == id));
         public Task<List<ActivityEvent>> GetByDateRangeAsync(DateTime startUtc, DateTime endUtc, string? machineId = null, CancellationToken ct = default) => Task.FromResult(Events);
-        public Task<List<ActivityEvent>> GetUnlinkedActivitiesAsync(DateTime beforeUtc, CancellationToken ct = default) => Task.FromResult(new List<ActivityEvent>());
+        public Task<List<ActivityEvent>> GetUnlinkedActivitiesAsync(DateTime beforeUtc, CancellationToken ct = default, long afterId = 0) => Task.FromResult(new List<ActivityEvent>());
         public Task<Core.Models.DailyActivitySummary> GetDailySummaryAsync(DateTime dateUtc, string? machineId = null, CancellationToken ct = default) => Task.FromResult(new Core.Models.DailyActivitySummary());
         public Task<List<Core.Models.ApplicationUsageSummary>> GetTopApplicationsAsync(DateTime dateUtc, string? machineId = null, CancellationToken ct = default) => Task.FromResult(new List<Core.Models.ApplicationUsageSummary>());
 
@@ -78,49 +80,190 @@ public class StorageManagementTests
     [Fact]
     public async Task RetentionPolicy_ShouldMarkExpiredRecordingsAsDeleted_WithoutDeletingActivityEvents()
     {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "ActivityMonitor_StorageTest_" + Guid.NewGuid().ToString("N"));
+        ActivityMonitorPaths.SetCustomRootDirectory(tempRoot);
         var recRepo = new InMemoryRecordingRepository();
         var actRepo = new InMemoryActivityRepository();
 
-        // 30 days old recording and activity
-        var oldDate = DateTime.UtcNow.AddDays(-30);
-        var oldSegment = new RecordingSegment
+        try
         {
-            Id = 1,
-            MachineId = "PC-01",
-            FileName = "old_rec.mp4",
-            FilePath = @"C:\Fake\old_rec.mp4",
-            StartedAtUtc = oldDate,
-            EndedAtUtc = oldDate.AddMinutes(10),
-            Status = RecordingStatus.Completed
-        };
-        await recRepo.AddAsync(oldSegment);
+            // 30 days old recording and activity
+            var oldDate = DateTime.UtcNow.AddDays(-30);
+            var recordingPath = ActivityMonitorPaths.GetRecordingFilePath("PC-01", oldDate, "old_rec.mp4");
+            await File.WriteAllBytesAsync(recordingPath, new byte[] { 1, 2, 3, 4 });
 
-        var oldActivity = new ActivityEvent
+            var oldSegment = new RecordingSegment
+            {
+                Id = 1,
+                MachineId = "PC-01",
+                FileName = "old_rec.mp4",
+                FilePath = recordingPath,
+                StartedAtUtc = oldDate,
+                EndedAtUtc = oldDate.AddMinutes(10),
+                Status = RecordingStatus.Completed
+            };
+            await recRepo.AddAsync(oldSegment);
+
+            var oldActivity = new ActivityEvent
+            {
+                Id = 1,
+                MachineId = "PC-01",
+                ProcessName = "notepad",
+                StartedAtUtc = oldDate.AddMinutes(2),
+                DurationSeconds = 120,
+                RecordingSegmentId = 1
+            };
+            await actRepo.AddAsync(oldActivity);
+
+            var optionsMonitor = new TestOptionsMonitor<StorageOptions>(new StorageOptions
+            {
+                RecordingRetentionDays = 14,
+                ActivityRetentionDays = 90
+            });
+
+            var storageService = new StorageManagementService(recRepo, actRepo, optionsMonitor, NullLogger<StorageManagementService>.Instance);
+
+            var deletedCount = await storageService.EnforceRetentionPoliciesAsync();
+
+            Assert.Equal(1, deletedCount);
+            Assert.Equal(RecordingStatus.Deleted, oldSegment.Status);
+            Assert.False(File.Exists(recordingPath));
+
+            // Crucial requirement: ActivityEvents must NOT be deleted just because the video was deleted!
+            Assert.Single(actRepo.Events);
+            Assert.Equal(1, actRepo.Events[0].RecordingSegmentId);
+        }
+        finally
         {
-            Id = 1,
-            MachineId = "PC-01",
-            ProcessName = "notepad",
-            StartedAtUtc = oldDate.AddMinutes(2),
-            DurationSeconds = 120,
-            RecordingSegmentId = 1
-        };
-        await actRepo.AddAsync(oldActivity);
+            ActivityMonitorPaths.SetCustomRootDirectory(null);
+            if (Directory.Exists(tempRoot))
+            {
+                try { Directory.Delete(tempRoot, true); } catch { }
+            }
+        }
+    }
 
-        var options = Microsoft.Extensions.Options.Options.Create(new StorageOptions
+    [Fact]
+    public async Task RetentionPolicy_ShouldRefusePathOutsideRecordingsRoot()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "ActivityMonitor_StorageTest_" + Guid.NewGuid().ToString("N"));
+        var outsideFile = Path.Combine(Path.GetTempPath(), "ActivityMonitor_Outside_" + Guid.NewGuid().ToString("N") + ".mp4");
+        ActivityMonitorPaths.SetCustomRootDirectory(tempRoot);
+
+        try
+        {
+            await File.WriteAllBytesAsync(outsideFile, new byte[] { 1, 2, 3, 4 });
+            var segment = new RecordingSegment
+            {
+                Id = 7,
+                MachineId = "PC-01",
+                FileName = Path.GetFileName(outsideFile),
+                FilePath = outsideFile,
+                StartedAtUtc = DateTime.UtcNow.AddDays(-30),
+                Status = RecordingStatus.Completed
+            };
+
+            var recRepo = new InMemoryRecordingRepository();
+            await recRepo.AddAsync(segment);
+            var storageService = CreateStorageService(recRepo);
+
+            var deletedCount = await storageService.EnforceRetentionPoliciesAsync();
+
+            Assert.Equal(0, deletedCount);
+            Assert.True(File.Exists(outsideFile));
+            Assert.Equal(RecordingStatus.Completed, segment.Status);
+        }
+        finally
+        {
+            ActivityMonitorPaths.SetCustomRootDirectory(null);
+            if (File.Exists(outsideFile)) File.Delete(outsideFile);
+            if (Directory.Exists(tempRoot))
+            {
+                try { Directory.Delete(tempRoot, true); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RetentionPolicy_ShouldKeepStatus_WhenFileDeletionFails()
+    {
+        var tempRoot = Path.Combine(Path.GetTempPath(), "ActivityMonitor_StorageTest_" + Guid.NewGuid().ToString("N"));
+        ActivityMonitorPaths.SetCustomRootDirectory(tempRoot);
+
+        try
+        {
+            var oldDate = DateTime.UtcNow.AddDays(-30);
+            var recordingPath = ActivityMonitorPaths.GetRecordingFilePath("PC-01", oldDate, "locked.mp4");
+            await File.WriteAllBytesAsync(recordingPath, new byte[] { 1, 2, 3, 4 });
+
+            var segment = new RecordingSegment
+            {
+                Id = 8,
+                MachineId = "PC-01",
+                FileName = "locked.mp4",
+                FilePath = recordingPath,
+                StartedAtUtc = oldDate,
+                Status = RecordingStatus.Completed
+            };
+
+            var recRepo = new InMemoryRecordingRepository();
+            await recRepo.AddAsync(segment);
+            var storageService = CreateStorageService(recRepo);
+
+            await using (var lockStream = new FileStream(recordingPath, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                var deletedCount = await storageService.EnforceRetentionPoliciesAsync();
+                Assert.Equal(0, deletedCount);
+                Assert.Equal(RecordingStatus.Completed, segment.Status);
+                Assert.True(File.Exists(recordingPath));
+            }
+        }
+        finally
+        {
+            ActivityMonitorPaths.SetCustomRootDirectory(null);
+            if (Directory.Exists(tempRoot))
+            {
+                try { Directory.Delete(tempRoot, true); } catch { }
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(@"C:\Windows\System32\config\SAM")]
+    [InlineData(@"..\outside.mp4")]
+    public void StoragePathGuard_ShouldRejectPathsOutsideAllowedRoot(string candidate)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ActivityMonitor", "Recordings");
+
+        var accepted = StoragePathGuard.TryResolvePathWithinRoot(candidate, root, out _, out _);
+
+        Assert.False(accepted);
+    }
+
+    private static StorageManagementService CreateStorageService(InMemoryRecordingRepository recRepo)
+    {
+        var optionsMonitor = new TestOptionsMonitor<StorageOptions>(new StorageOptions
         {
             RecordingRetentionDays = 14,
-            ActivityRetentionDays = 90
+            ActivityRetentionDays = 90,
+            ReportRetentionDays = 90,
+            LogRetentionDays = 30,
+            MaxStorageSizeGB = 50,
+            MinimumFreeDiskSpaceGB = 0
         });
 
-        var storageService = new StorageManagementService(recRepo, actRepo, options, NullLogger<StorageManagementService>.Instance);
+        return new StorageManagementService(
+            recRepo,
+            new InMemoryActivityRepository(),
+            optionsMonitor,
+            NullLogger<StorageManagementService>.Instance);
+    }
 
-        var deletedCount = await storageService.EnforceRetentionPoliciesAsync();
-
-        Assert.Equal(1, deletedCount);
-        Assert.Equal(RecordingStatus.Deleted, oldSegment.Status);
-
-        // Crucial requirement: ActivityEvents must NOT be deleted just because the video was deleted!
-        Assert.Single(actRepo.Events);
-        Assert.Equal(1, actRepo.Events[0].RecordingSegmentId);
+    private class TestOptionsMonitor<T> : IOptionsMonitor<T> where T : class
+    {
+        public TestOptionsMonitor(T currentValue) => CurrentValue = currentValue;
+        public T CurrentValue { get; }
+        public T Get(string? name) => CurrentValue;
+        public IDisposable? OnChange(Action<T, string?> listener) => null;
     }
 }
