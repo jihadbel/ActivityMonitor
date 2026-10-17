@@ -21,3 +21,10 @@ deploy/dist/
 *.db
 *.db-shm
 *.db-wal
+
+## Local verification artifacts
+/scratch/package-validation*/
+/scratch/package-validation*.zip
+/scratch/ActivityMonitor-fixed-win-x64.zip
+/scratch/fix-results/
+/scratch/__pycache__/
