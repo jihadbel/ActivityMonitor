@@ -15,13 +15,22 @@ using Xunit;
 
 namespace ActivityMonitor.Tests;
 
+[Collection(ActivityMonitorPathsCollection.Name)]
 public class ReportExporterTests
 {
     private class TestActivityRepository : IActivityRepository
     {
+        private readonly string _processName;
+
+        public TestActivityRepository(string processName = "devenv")
+        {
+            _processName = processName;
+        }
+
         public Task<ActivityEvent> AddAsync(ActivityEvent activityEvent, CancellationToken ct = default) => Task.FromResult(activityEvent);
         public Task AddRangeAsync(IEnumerable<ActivityEvent> activityEvents, CancellationToken ct = default) => Task.CompletedTask;
         public Task UpdateAsync(ActivityEvent activityEvent, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<bool> SetRecordingSegmentIfMissingAsync(long activityEventId, long recordingSegmentId, CancellationToken ct = default) => Task.FromResult(true);
         public Task<ActivityEvent?> GetByIdAsync(long id, CancellationToken ct = default) => Task.FromResult<ActivityEvent?>(null);
 
         public Task<List<ActivityEvent>> GetByDateRangeAsync(DateTime startUtc, DateTime endUtc, string? machineId = null, CancellationToken ct = default)
@@ -33,7 +42,7 @@ public class ReportExporterTests
                     Id = 1,
                     MachineId = "PC-01",
                     UserIdentifier = "TestUser",
-                    ProcessName = "devenv",
+                    ProcessName = _processName,
                     WindowTitle = "ActivityMonitor - Solution Explorer",
                     ContextPath = @"C:\Users\Masoud\source\repos\ActivityMonitor",
                     ProcessPath = @"C:\Program Files\Microsoft Visual Studio\devenv.exe",
@@ -46,7 +55,7 @@ public class ReportExporterTests
             return Task.FromResult(list);
         }
 
-        public Task<List<ActivityEvent>> GetUnlinkedActivitiesAsync(DateTime beforeUtc, CancellationToken ct = default) => Task.FromResult(new List<ActivityEvent>());
+        public Task<List<ActivityEvent>> GetUnlinkedActivitiesAsync(DateTime beforeUtc, CancellationToken ct = default, long afterId = 0) => Task.FromResult(new List<ActivityEvent>());
 
         public Task<DailyActivitySummary> GetDailySummaryAsync(DateTime dateUtc, string? machineId = null, CancellationToken ct = default)
         {
@@ -80,13 +89,43 @@ public class ReportExporterTests
 
     private class TestRecordingRepository : IRecordingRepository
     {
+        private readonly string? _spanningRoot;
+
+        public TestRecordingRepository(string? spanningRoot = null)
+        {
+            _spanningRoot = spanningRoot;
+        }
+
         public Task<RecordingSegment> AddAsync(RecordingSegment segment, CancellationToken ct = default) => Task.FromResult(segment);
         public Task UpdateAsync(RecordingSegment segment, CancellationToken ct = default) => Task.CompletedTask;
         public Task<RecordingSegment?> GetByIdAsync(long id, CancellationToken ct = default) => Task.FromResult<RecordingSegment?>(null);
-        public Task<RecordingSegment?> GetActiveSegmentAsync(string machineId, CancellationToken ct = default) => Task.FromResult<RecordingSegment?>(null);
+        public Task<RecordingSegment?> GetActiveSegmentAsync(string machineId, CancellationToken ct = default, int? sessionId = null) => Task.FromResult<RecordingSegment?>(null);
 
         public Task<List<RecordingSegment>> GetByDateRangeAsync(DateTime startUtc, DateTime endUtc, string? machineId = null, CancellationToken ct = default)
         {
+            if (_spanningRoot != null)
+            {
+                return Task.FromResult(new List<RecordingSegment>
+                {
+                    new()
+                    {
+                        Id = 1, MachineId = "PC-01", FileName = "part-1.mp4",
+                        FilePath = Path.Combine(_spanningRoot, "part-1.mp4"),
+                        StartedAtUtc = startUtc.AddHours(8).AddMinutes(52),
+                        EndedAtUtc = startUtc.AddHours(9).AddMinutes(10),
+                        DurationSeconds = 1080, Status = RecordingStatus.Completed
+                    },
+                    new()
+                    {
+                        Id = 2, MachineId = "PC-01", FileName = "part-2.mp4",
+                        FilePath = Path.Combine(_spanningRoot, "part-2.mp4"),
+                        StartedAtUtc = startUtc.AddHours(9).AddMinutes(10),
+                        EndedAtUtc = startUtc.AddHours(9).AddMinutes(30),
+                        DurationSeconds = 1200, Status = RecordingStatus.Completed
+                    }
+                });
+            }
+
             return Task.FromResult(new List<RecordingSegment>
             {
                 new()
@@ -104,17 +143,10 @@ public class ReportExporterTests
             });
         }
 
-        public Task<List<RecordingSegment>> GetSegmentsCoveringTimeRangeAsync(DateTime startUtc, DateTime endUtc, string? machineId = null, CancellationToken ct = default) => Task.FromResult(new List<RecordingSegment>());
+        public Task<List<RecordingSegment>> GetSegmentsCoveringTimeRangeAsync(DateTime startUtc, DateTime endUtc, string? machineId = null, CancellationToken ct = default, int? sessionId = null) => Task.FromResult(new List<RecordingSegment>());
         public Task<List<RecordingSegment>> GetSegmentsOlderThanAsync(DateTime cutoffUtc, CancellationToken ct = default) => Task.FromResult(new List<RecordingSegment>());
         public Task<List<RecordingSegment>> GetAllCompletedSegmentsAsync(CancellationToken ct = default) => Task.FromResult(new List<RecordingSegment>());
         public Task<int> MarkAsDeletedAsync(long id, CancellationToken ct = default) => Task.FromResult(1);
-    }
-
-    private class DummyLocatorService : IRecordingLocatorService
-    {
-        public Task<List<RecordingLocationResult>> LocateAsync(ActivityEvent activityEvent, CancellationToken ct = default) => Task.FromResult(new List<RecordingLocationResult>());
-        public Task<List<RecordingLocationResult>> LocateByTimestampAsync(DateTime timestampUtc, TimeSpan? duration = null, string? machineId = null, CancellationToken ct = default) => Task.FromResult(new List<RecordingLocationResult>());
-        public Task<int> LinkUnlinkedActivitiesAsync(DateTime beforeUtc, CancellationToken ct = default) => Task.FromResult(0);
     }
 
     [Fact]
@@ -128,7 +160,6 @@ public class ReportExporterTests
             var exporter = new ActivityReportExporter(
                 new TestActivityRepository(),
                 new TestRecordingRepository(),
-                new DummyLocatorService(),
                 NullLogger<ActivityReportExporter>.Instance);
 
             var date = new DateTime(2026, 10, 4);
@@ -163,7 +194,6 @@ public class ReportExporterTests
             var exporter = new ActivityReportExporter(
                 new TestActivityRepository(),
                 new TestRecordingRepository(),
-                new DummyLocatorService(),
                 NullLogger<ActivityReportExporter>.Instance);
 
             var date = new DateTime(2026, 10, 4);
@@ -176,10 +206,69 @@ public class ReportExporterTests
             var csvContent = await File.ReadAllTextAsync(csvPath);
             Assert.Contains("TimestampUtc,EndTimeUtc,Duration,Application,WindowTitle", csvContent);
             Assert.Contains("devenv", csvContent);
+            Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(csvPath)!, "*.tmp"));
 
             var txtContent = await File.ReadAllTextAsync(txtPath);
             Assert.Contains("ACTIVITYMONITOR DAILY REPORT", txtContent);
             Assert.Contains("Total Active Time:", txtContent);
+        }
+        finally
+        {
+            ActivityMonitorPaths.SetCustomRootDirectory(null);
+            if (Directory.Exists(tempDir))
+            {
+                try { Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ExportDailyCsvReportAsync_ShouldNeutralizeSpreadsheetFormulas()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "ActivityMonitor_Test_" + Guid.NewGuid().ToString("N"));
+        ActivityMonitorPaths.SetCustomRootDirectory(tempDir);
+
+        try
+        {
+            var exporter = new ActivityReportExporter(
+                new TestActivityRepository("=2+2"),
+                new TestRecordingRepository(),
+                NullLogger<ActivityReportExporter>.Instance);
+
+            var csvPath = await exporter.ExportDailyCsvReportAsync(new DateTime(2026, 10, 4), "PC-01");
+            var csvContent = await File.ReadAllTextAsync(csvPath);
+
+            Assert.Contains(",'=2+2,", csvContent);
+            Assert.DoesNotContain(",=2+2,", csvContent);
+        }
+        finally
+        {
+            ActivityMonitorPaths.SetCustomRootDirectory(null);
+            if (Directory.Exists(tempDir))
+            {
+                try { Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ExportDailyCsvReportAsync_ShouldIncludeEveryRecordingPartForSpanningActivity()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "ActivityMonitor_Test_" + Guid.NewGuid().ToString("N"));
+        ActivityMonitorPaths.SetCustomRootDirectory(tempDir);
+
+        try
+        {
+            var exporter = new ActivityReportExporter(
+                new TestActivityRepository(),
+                new TestRecordingRepository(tempDir),
+                NullLogger<ActivityReportExporter>.Instance);
+
+            var csvPath = await exporter.ExportDailyCsvReportAsync(new DateTime(2026, 10, 4), "PC-01");
+            var csvContent = await File.ReadAllTextAsync(csvPath);
+
+            Assert.Contains("part-1.mp4 | part-2.mp4", csvContent);
+            Assert.Contains("00:08:00 | 00:00:00", csvContent);
         }
         finally
         {
