@@ -1,0 +1,30 @@
+name: Windows build and regression tests
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet restore ActivityMonitor.slnx --locked-mode
+      - run: dotnet build ActivityMonitor.slnx -c Release --no-restore
+      - run: dotnet test ActivityMonitor.slnx -c Release --no-build --logger "trx;LogFileName=tests.trx" --results-directory test-results
+      - name: Parse deployment scripts without installing
+        shell: pwsh
+        run: |
+          Get-ChildItem deploy/*.ps1 | ForEach-Object {
+            $tokens = $null; $parseErrors = $null
+            [void][Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$parseErrors)
+            if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-test-results
+          path: test-results/*.trx
