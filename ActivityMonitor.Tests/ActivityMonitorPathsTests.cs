@@ -5,6 +5,7 @@ using Xunit;
 
 namespace ActivityMonitor.Tests;
 
+[Collection(ActivityMonitorPathsCollection.Name)]
 public class ActivityMonitorPathsTests
 {
     [Fact]
