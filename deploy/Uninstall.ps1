@@ -1,63 +1,35 @@
-# Uninstall.ps1 - Uninstaller for ActivityMonitor Windows Service and Agent
-# Requires Administrator privileges
-param(
-    [string]$InstallDir = "C:\Program Files\ActivityMonitor",
+﻿param(
+    [string]$InstallDir = (Join-Path ([Environment]::GetFolderPath('ProgramFiles')) 'ActivityMonitor'),
     [switch]$PurgeData = $false
 )
-
-$ErrorActionPreference = "Continue"
-
-$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $isAdmin) {
-    Write-Error "This uninstaller must be executed with Administrator privileges. Please run PowerShell as Administrator."
-    exit 1
+$ErrorActionPreference = 'Stop'
+. "$PSScriptRoot\PathSafety.ps1"
+$principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (!$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Run the uninstaller as Administrator.' }
+$target = Assert-ActivityMonitorDirectory -Path $InstallDir
+$service = Get-Service -Name 'ActivityMonitor.Service' -ErrorAction SilentlyContinue
+if ($service -and $service.Status -ne 'Stopped') { Stop-Service -Name $service.Name; $service.WaitForStatus('Stopped', (New-TimeSpan -Seconds 45)) }
+Stop-ActivityMonitorAgents -InstallRoot $target
+Get-Process -Name 'ActivityMonitor.Viewer' -ErrorAction SilentlyContinue |
+    Where-Object { $_.Path.StartsWith($target.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase) } | Stop-Process -ErrorAction Stop
+if ($service) { & sc.exe delete 'ActivityMonitor.Service'; if ($LASTEXITCODE -ne 0) { throw 'Failed to remove service.' } }
+if (Get-ScheduledTask -TaskName 'ActivityMonitorAgent' -ErrorAction SilentlyContinue) { Unregister-ScheduledTask -TaskName 'ActivityMonitorAgent' -Confirm:$false }
+foreach ($run in @('HKLM:\Software\Microsoft\Windows\CurrentVersion\Run','HKCU:\Software\Microsoft\Windows\CurrentVersion\Run')) {
+    if (Get-ItemProperty -LiteralPath $run -Name 'ActivityMonitorAgent' -ErrorAction SilentlyContinue) { Remove-ItemProperty -LiteralPath $run -Name 'ActivityMonitorAgent' }
 }
-
-Write-Host "==================================================" -ForegroundColor Cyan
-Write-Host "     ActivityMonitor Windows Uninstaller          " -ForegroundColor Cyan
-Write-Host "==================================================" -ForegroundColor Cyan
-
-# 1. Stop and remove Windows Service
-Write-Host "[1/5] Stopping and removing Windows Service..." -ForegroundColor Yellow
-sc.exe stop ActivityMonitor.Service 2>$null | Out-Null
-Start-Sleep -Seconds 2
-sc.exe delete ActivityMonitor.Service 2>$null | Out-Null
-
-# 2. Stop running Agent processes
-Write-Host "[2/5] Terminating Agent instances..." -ForegroundColor Yellow
-Get-Process -Name "ActivityMonitor.Agent" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-
-# 3. Remove Scheduled Task and Registry Run keys
-Write-Host "[3/5] Removing startup registrations..." -ForegroundColor Yellow
-schtasks.exe /Delete /TN "ActivityMonitorAgent" /F 2>$null | Out-Null
-
-try {
-    $regKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-    if (Get-ItemProperty -Path $regKey -Name "ActivityMonitorAgent" -ErrorAction SilentlyContinue) {
-        Remove-ItemProperty -Path $regKey -Name "ActivityMonitorAgent" -Force -ErrorAction SilentlyContinue
-    }
-} catch { }
-
-# 4. Remove Binary Files
-Write-Host "[4/5] Removing installed binaries..." -ForegroundColor Yellow
-if (Test-Path $InstallDir) {
-    Remove-Item -Path $InstallDir -Recurse -Force -ErrorAction SilentlyContinue
-}
-
-# 5. Handle ProgramData according to policy
-$ProgramDataRoot = "C:\ProgramData\ActivityMonitor"
-Write-Host "[5/5] Checking data retention policy..." -ForegroundColor Yellow
+if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
+$shortcut = Join-Path ([Environment]::GetFolderPath('CommonPrograms')) 'ActivityMonitor\ActivityMonitor Viewer.lnk'
+if (Test-Path -LiteralPath $shortcut) { Remove-Item -LiteralPath $shortcut -Force }
 if ($PurgeData) {
-    Write-Host "PurgeData switch was specified. Deleting all recordings and databases in $ProgramDataRoot..." -ForegroundColor Red
-    if (Test-Path $ProgramDataRoot) {
-        Remove-Item -Path $ProgramDataRoot -Recurse -Force -ErrorAction SilentlyContinue
+    $shared = Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'ActivityMonitor'
+    $private = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'ActivityMonitor'
+    foreach ($data in @($shared,$private)) {
+        $full = [IO.Path]::GetFullPath($data)
+        if ([IO.Path]::GetFileName($full) -ne 'ActivityMonitor') { throw "Unsafe data target: $full" }
+        for ($ancestor=$full; $ancestor; $ancestor=[IO.Path]::GetDirectoryName($ancestor)) {
+            if ((Test-Path -LiteralPath $ancestor) -and ((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw "Unsafe data ancestor: $ancestor" }
+        }
+        if (Test-Path -LiteralPath $full) { Remove-Item -LiteralPath $full -Recurse -Force }
     }
-    Write-Host "All data removed." -ForegroundColor Green
-} else {
-    Write-Host "Data preserved safely at: $ProgramDataRoot" -ForegroundColor Cyan
-    Write-Host "Note: Database and recordings were NOT deleted. To permanently erase, re-run with -PurgeData flag." -ForegroundColor Cyan
 }
-
-Write-Host "==================================================" -ForegroundColor Green
-Write-Host "       Uninstall completed successfully!          " -ForegroundColor Green
-Write-Host "==================================================" -ForegroundColor Green
+Write-Host 'Uninstalled. Data is preserved unless -PurgeData was specified. Other users private stores are always preserved.' -ForegroundColor Green
