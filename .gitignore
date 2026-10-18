@@ -15,6 +15,7 @@ x86/
 
 ## Distribution
 deploy/dist/
+/*.zip
 
 ## Database and local logs
 *.log
@@ -23,6 +24,8 @@ deploy/dist/
 *.db-wal
 
 ## Local verification artifacts
+/scratch/analysis-results/
+/scratch/analysis-probes-20261015/probe-results*.json
 /scratch/package-validation*/
 /scratch/package-validation*.zip
 /scratch/ActivityMonitor-fixed-win-x64.zip
